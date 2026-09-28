@@ -83,10 +83,8 @@
 
 **三种使用方式**
 - 安卓：安装 `软件成品/app-debug.apk`（安装时需要允许"未知来源"）；
-- 手机/电脑浏览器：直接打开 `index.html`（暗色）或 `index-light.html`（浅色）；
+- 手机/电脑浏览器：直接打开 `index.html`；
 - 部署：把 `index.html` 放到任意静态服务器或 GitHub Pages 即可。
-
-> **暗色 / 浅色两版**：`index.html` 是暗色主版本（默认），`index-light.html` 是浅色版。两者结构与算法完全一致，只有调色板不同——暗色版靠五级明度分层（`bg/panel/card/card-hi`）在弱光下不刺眼，浅色版适合白天户外。浅色版的全部文字/控件对比度都按 WCAG AA 校验过（正文 16.3:1、最低 6.6:1），金色数值在白底上压深到 `#7a4c05` 才合规。
 
 > 自定义预设保存在手机本地（localStorage 存风格数据 + IndexedDB 存参考图原图），换设备不会同步。可用"重置"重新读取本地存储。
 
@@ -211,8 +209,7 @@ ISO 的 `isoMode` 是必要的：剪影和高亮场景的语义是"故意欠曝/
 
 ```
 root/
-├── index.html                 # 主版本（暗色），全部界面 + 算法，单文件；直接双击即可用，无需构建
-├── index-light.html           # 浅色版：与主版本同一套结构与算法，只换调色板（含画布主题色）
+├── index.html                 # 主版本，全部界面 + 算法，单文件；直接双击即可用，无需构建
 ├── src/bridge.js              # 安卓壳的保存能力：写入系统相册（MediaStore）
 ├── diag-check.js              # 静态自检：JS 语法、$(id) 引用、CSS 类是否都能对上 DOM
 ├── package.json               # 依赖与构建脚本；@capacitor-community/media 用于存相册
