@@ -39,9 +39,17 @@ async function saveAll(items) {
   return ok;
 }
 
+const say = msg => { const t = window.__rootToast; if (t) t(msg, 'success'); };
+
 // 返回 true 表示已在原生侧处理完，调用方不必再走网页下载
 window.__nativeSave = Capacitor.isNativePlatform()
-  ? async items => (items.length ? (await saveAll(items), true) : false)
+  ? async items => {
+      if (!items.length) return false;
+      const ok = await saveAll(items);
+      if (!ok) throw new Error('save-failed');
+      say(`已保存 ${ok} 张到相册（${ALBUM}）`);
+      return true;
+    }
   : null;
 
 if (Capacitor.isNativePlatform()) {

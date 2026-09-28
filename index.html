@@ -331,7 +331,7 @@
       const state = {
         currentImage: null, currentFileName: '', originalImageUrl: null,
         analysis: null, selectedPreset: null, customPresets: [],
-        processedBlob: null, processedBlobUrl: null, stagedImages: [],
+        processedBlob: null, processedBlobUrl: null, stagedImages: [], savingToAlbum: false,
       };
       const $ = id => document.getElementById(id);
       const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -363,6 +363,7 @@
         el.toastRoot.appendChild(t);
         setTimeout(() => t.remove(), 2600);
       }
+      window.__rootToast = toast;   // 供 bridge.js（原生保存）回传结果提示
       function openLightbox(src, title) { el.lbImg.src = src; el.lbTitle.textContent = title || ''; el.lightbox.classList.add('open'); }
       function closeLightbox() { el.lightbox.classList.remove('open'); el.lbImg.src = ''; }
 
@@ -850,6 +851,18 @@
       }
       function downloadAll() {
         if (!state.stagedImages.length) { toast('暂存区为空，无法下载', 'error'); return; }
+        // 安卓壳里走原生保存到系统相册；bridge.js 加载失败时自动退回网页下载
+        if (window.__nativeSave && !state.savingToAlbum) {
+          state.savingToAlbum = true;
+          Promise.resolve(window.__nativeSave(state.stagedImages.map(i => ({ url: i.blobUrl, name: i.fileName }))))
+            .then(ok => { if (ok !== true) webDownload(); })
+            .catch(() => { toast('保存到相册失败，改用下载', 'error'); webDownload(); })
+            .finally(() => { state.savingToAlbum = false; });
+          return;
+        }
+        webDownload();
+      }
+      function webDownload() {
         state.stagedImages.forEach((item, i) => setTimeout(() => {
           const a = document.createElement('a'); a.href = item.blobUrl; a.download = item.fileName; a.click();
         }, i * 500));

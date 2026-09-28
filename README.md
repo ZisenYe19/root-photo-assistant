@@ -196,7 +196,7 @@ ISO 的 `isoMode` 是必要的：剪影和高亮场景的语义是"故意欠曝/
 root/
 ├── index.html                 # 全部界面 + 算法，单文件；直接双击即可用，无需构建
 ├── src/bridge.js              # 安卓壳的保存能力：写入系统相册（MediaStore）
-├── package.json               # 依赖与构建脚本；唯一第三方原生插件 @capacitor-community/media 用于存相册
+├── package.json               # 依赖与构建脚本；@capacitor-community/media 用于存相册
 ├── vite.config.js             # base: './' + 两个入口（页面与 bridge），适配 file:// 与 WebView
 ├── capacitor.config.json      # Capacitor 安卓壳配置
 ├── .github/workflows/build-apk.yml   # 推 tag 或手动触发时自动构建 APK 并上传产物
@@ -224,6 +224,8 @@ cd android && ./gradlew assembleDebug     # Windows: gradlew.bat assembleDebug
 > 网页版（`index.html`）不依赖任何构建：算法、界面、样式全在这一个文件里。`bridge.js` 只在 APK 内起作用，浏览器中未加载也不影响任何功能。
 >
 > APK 内那个按钮叫"保存到相册"：成片写入系统相册的 `Pictures/Root/` 相册（MediaStore 登记，相册应用立即可见），无需任何存储权限。发微信、发抖音等从相册里选即可。
+>
+> 保存有两条路：检测到 `window.__nativeSave`（bridge.js 在 APK 内注册成功）就走原生写相册；否则一律退回浏览器的 `a.click()` 下载。原生保存失败时会提示"保存到相册失败，改用下载"并自动退回，不会出现点了没反应的情况。`filesystem` 与 `share` 两个依赖仍保留：它们是早期版本的导出方式，删除会与已经生成过的 `android/` 工程不一致，留到下次重建原生工程时一起清。
 
 ## 九、后续方向（按优先级）
 
