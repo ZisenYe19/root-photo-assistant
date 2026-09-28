@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>根*Root · 手机摄影辅助工具</title>
+  <style>
+    /* ============ 设计变量 ============ */
+    :root {
+      --bg: #111318; --panel: #1a1d24; --card: #21252e;
+      --text: #e8e9ed; --muted: #9aa1ad; --accent: #d4a94e;
+      --accent-soft: #d4a94e22; --border: #2e333d;
+      --danger: #e07a5f; --danger-soft: #e07a5f22; --success: #6abf69;
+      --shadow: 0 6px 20px rgba(0,0,0,.35); --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.5; padding: 14px; min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 14px; }
+    header h1 { font-size: 1.5rem; letter-spacing: 2px; color: var(--accent); }
+    header p { color: var(--muted); font-size: .82rem; }
+
+    main { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    section { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .sec-title { font-size: .95rem; font-weight: 600; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .sec-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+    /* 上传区 */
+    .dropzone { border: 2px dashed var(--border); border-radius: 12px; padding: 22px 14px; text-align: center; color: var(--muted); cursor: pointer; transition: all .2s; background: var(--card); }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .dropzone p { font-size: .88rem; }
+    .upload-preview { display: flex; align-items: center; gap: 10px; margin-top: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+    .upload-preview .thumb { width: 72px; height: 54px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); background: #000; }
+    .upload-preview .meta { flex: 1; min-width: 0; }
+    .upload-preview .fname { font-weight: 600; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* 指标与直方图 */
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .metric { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 6px; text-align: center; }
+    .metric .v { font-size: 1.25rem; font-weight: 700; }
+    .metric .u { font-size: .76rem; color: var(--muted); }
+    .metric .l { font-size: .74rem; color: var(--muted); margin-top: 2px; }
+    canvas#histogram { width: 100%; height: 90px; border-radius: 8px; background: #000; margin-top: 8px; }
+
+    /* 标签页 */
+    .tabs { display: flex; gap: 8px; }
+    .tab-btn { flex: 1; border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 10px; padding: 10px 8px; font-size: .9rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #111; }
+    .pane { margin-top: 12px; }
+
+    /* 按钮 */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; padding: 10px 14px; font-size: .9rem; font-weight: 600; cursor: pointer; transition: all .15s; border: 1px solid transparent; line-height: 1.3; }
+    .btn-primary { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent); color: #111; }
+    .btn-secondary { background: var(--card); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+    .btn-danger:hover { background: var(--danger); color: #111; }
+    .btn-sm { padding: 6px 10px; font-size: .8rem; border-radius: 8px; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    /* 预设双栏 */
+    .preset-row { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
+    .preset-col.custom { border-left: 1px solid var(--border); padding-left: 14px; }
+    .segmented { display: flex; flex-wrap: wrap; gap: 8px; }
+    .seg { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 7px 16px; font-size: .88rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .seg:hover { border-color: var(--accent); color: var(--accent); }
+    .seg.active { background: var(--accent); border-color: var(--accent); color: #111; }
+
+    /* 自定义预设 chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px 4px 4px; font-size: .84rem; animation: chipIn .18s ease; }
+    @keyframes chipIn { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: none; } }
+    .chip-thumb { width: 30px; height: 30px; object-fit: cover; border-radius: 50%; border: 1px solid var(--border); cursor: pointer; background: #000; }
+    .chip .name { font-weight: 600; cursor: pointer; }
+    .chip .name:hover { color: var(--accent); }
+    .chip .edit { border: none; background: transparent; color: var(--muted); font-size: .8rem; line-height: 1; cursor: pointer; padding: 0 2px; }
+    .chip .edit:hover { color: var(--accent); }
+    .chip .del { border: none; background: transparent; color: var(--muted); font-size: 1rem; line-height: 1; cursor: pointer; }
+    .chip .del:hover { color: var(--danger); }
+    .chip.active { border-color: var(--accent); background: var(--accent-soft); }
+    .rename-input { width: 96px; background: var(--bg); color: var(--text); border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; font-size: .84rem; }
+    .custom-ref-box { margin-top: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; }
+    .custom-ref-box .ref-label { color: var(--muted); font-size: .76rem; margin-bottom: 6px; }
+    #custom-ref-img { max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 6px; background: #000; cursor: zoom-in; border: 1px solid var(--border); }
+
+    .save-area { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+    .save-area input[type="file"] { flex: 1; min-width: 120px; font-size: .78rem; }
+
+    /* 表格与清单 */
+    .params-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .params-table th, .params-table td { padding: 8px 10px; text-align: left; }
+    .params-table thead th { background: var(--card); color: var(--accent); font-weight: 600; border-bottom: 1px solid var(--border); }
+    .params-table tbody td { border-bottom: 1px solid var(--border); }
+    .params-table tbody tr:last-child td { border-bottom: none; }
+    .params-table td:last-child { font-weight: 600; color: var(--accent); }
+    .lr-list { list-style: none; }
+    .lr-list li { display: flex; justify-content: space-between; padding: 7px 2px; border-bottom: 1px solid var(--border); font-size: .86rem; }
+    .lr-list li:last-child { border-bottom: none; }
+    .lr-list li span:first-child { color: var(--muted); }
+    .lr-list li span:last-child { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1px 8px; font-weight: 600; }
+    .note { color: var(--muted); font-size: .78rem; margin-top: 6px; }
+    input[type="file"] { color: var(--muted); font-size: .82rem; }
+
+    /* 暂存与对比 */
+    .staged-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
+    .stage-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .stage-card .thumb { width: 100%; height: 88px; object-fit: cover; display: block; cursor: zoom-in; background: #000; }
+    .stage-card .info { padding: 6px 8px; }
+    .stage-card .fname { font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    .stage-card .fname:hover { color: var(--accent); }
+    .stage-card .del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(17,24,39,.7); color: #fff; border: none; font-size: .9rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; }
+    .stage-card:hover .del { opacity: 1; }
+    .stage-card .del:hover { background: var(--danger); }
+    .empty-tip { color: var(--muted); font-size: .82rem; margin-top: 10px; text-align: center; padding: 14px; border: 1px dashed var(--border); border-radius: 10px; }
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .compare-card { text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+    .compare-card .c-label { font-size: .8rem; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+    .compare-card img { width: 100%; max-height: 240px; object-fit: contain; border-radius: 6px; cursor: zoom-in; background: #000; }
+
+    footer { max-width: 1060px; margin: 0 auto; color: var(--muted); font-size: .76rem; }
+    footer .edge { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+
+    .hidden { display: none !important; }
+
+    /* Toast */
+    #toast-root { position: fixed; top: 16px; right: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow); font-size: .84rem; max-width: 280px; animation: slideIn .25s ease; }
+    .toast.success { border-color: var(--success); color: var(--success); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* 灯箱 */
+    #lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(10,12,18,.94); display: none; align-items: center; justify-content: center; flex-direction: column; padding: 24px; }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 96vw; max-height: 84vh; object-fit: contain; border-radius: 8px; background: #000; }
+    #lightbox .lb-title { color: #fff; margin-top: 10px; font-size: .84rem; opacity: .85; }
+    #lightbox .lb-close { position: absolute; top: 14px; right: 18px; background: rgba(255,255,255,.12); color: #fff; border: none; width: 38px; height: 38px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; }
+    #lightbox .lb-close:hover { background: rgba(255,255,255,.25); }
+
+    /* 介绍弹窗 */
+    #intro-modal { position: fixed; inset: 0; z-index: 3000; background: rgba(10,12,18,.85); display: flex; align-items: center; justify-content: center; padding: 20px; }
+    #intro-modal.hidden { display: none; }
+    .intro-box { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); width: 100%; max-width: 440px; max-height: 82vh; overflow-y: auto; padding: 22px 20px 18px; animation: introIn .25s ease; }
+    @keyframes introIn { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+    .intro-box .i-title { text-align: center; font-size: 1.35rem; letter-spacing: 3px; color: var(--accent); font-weight: 700; }
+    .intro-box .i-sub { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 4px; }
+    .intro-box .i-list { margin: 16px 0 4px; list-style: none; }
+    .intro-box .i-list li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); margin-bottom: 8px; font-size: .86rem; }
+    .intro-box .i-list .i-name { color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .intro-box .i-list .i-desc { color: var(--muted); }
+    .intro-box .i-note { text-align: center; color: var(--muted); font-size: .74rem; margin-top: 10px; }
+    .intro-box .i-close-btn { display: block; width: 100%; margin-top: 14px; background: var(--accent); color: #111; border: none; border-radius: 10px; padding: 12px; font-size: .95rem; font-weight: 700; cursor: pointer; }
+    .intro-box .i-close-btn:hover { filter: brightness(1.1); }
+
+    /* ============ 移动端适配 ============ */
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      section { padding: 12px; }
+      header h1 { font-size: 1.3rem; }
+      .metric .v { font-size: 1.1rem; }
+      .btn { padding: 12px 14px; font-size: .95rem; }   /* 触控友好 */
+      .btn-sm { padding: 8px 12px; font-size: .85rem; }
+      .seg { padding: 9px 18px; font-size: .95rem; }
+      .tab-btn { padding: 12px 8px; font-size: .95rem; }
+      .staged-grid { grid-template-columns: repeat(2, 1fr); }
+      .stage-card .thumb { height: 110px; }
+      .stage-card .del { opacity: 1; }
+      .compare-card img { max-height: 180px; }
+      .sticky-actions { position: sticky; bottom: 8px; z-index: 20; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 10px; box-shadow: var(--shadow); }
+      .sticky-actions .btn { flex: 1; min-width: 0; white-space: nowrap; }
+      .intro-box { max-width: 100%; padding: 18px 16px 14px; }
+      .preset-row { grid-template-columns: 1fr; }
+      .preset-col.custom { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 10px; }
+    }
+    @media (max-width: 400px) {
+      .metrics { gap: 6px; }
+      .metric .v { font-size: 1rem; }
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 功能介绍弹窗（前后期结合版） -->
+  <div id="intro-modal">
+    <div class="intro-box">
+      <div class="i-title">根*Root</div>
+      <div class="i-sub">手机摄影前后期助手 · 上传照片即得专业拍摄参数</div>
+      <ul class="i-list">
+        <li><span class="i-name">前期分析</span><span class="i-desc">解析照片亮度、色温与直方图</span></li>
+        <li><span class="i-name">前期参数</span><span class="i-desc">上传原照片后，自动给出 ISO / 快门 / 白平衡等专业模式参数，指导后续拍摄</span></li>
+        <li><span class="i-name">风格预设</span><span class="i-desc">上传参考图提取风格，一键复用；同时给出贴近参考图的拍摄参数</span></li>
+        <li><span class="i-name">后期出片</span><span class="i-desc">优化 JPEG，支持暂存、对比、下载与 LR 参数</span></li>
+      </ul>
+      <p class="i-note">先拍一张普通照片 → 按参数用专业模式拍摄 → 后期一键成片 · 全程本地处理，不上传服务器</p>
+      <button class="i-close-btn" id="intro-close">开始使用</button>
+    </div>
+  </div>
+
+  <header>
+    <h1>根*Root</h1>
+    <p>从照片读回光线，翻译成拍摄动作</p>
+  </header>
+
+  <main>
+    <!-- 上传 -->
+    <section>
+      <div class="sec-title"><span class="dot"></span>上传现场照片</div>
+      <div id="drop-zone" class="dropzone">
+        <p>点击或拖拽上传普通模式拍摄的照片</p>
+        <input type="file" id="photo-input" accept="image/*" class="hidden" />
+      </div>
+      <div id="upload-preview" class="upload-preview hidden">
+        <img id="upload-thumb" class="thumb" alt="已上传照片" />
+        <div class="meta">
+          <div class="fname" id="upload-fname">--</div>
+          <div class="note">照片已就绪</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="reselect-btn">重新选择</button>
+      </div>
+    </section>
+
+    <!-- 分析 -->
+    <section class="hidden" id="analysis-panel">
+      <div class="sec-title"><span class="dot"></span>光线分析</div>
+      <div class="metrics">
+        <div class="metric"><div class="l">亮度 L</div><div><span class="v" id="brightness-value">--</span><span class="u">/255</span></div></div>
+        <div class="metric"><div class="l">色温</div><div><span class="v" id="color-temp-value">--</span><span class="u">K</span></div></div>
+        <div class="metric"><div class="l">平均 RGB</div><div><span class="v" id="avg-rgb-value" style="font-size:.95rem;">--</span></div></div>
+      </div>
+      <canvas id="histogram" width="512" height="90"></canvas>
+      <p class="note" id="histogram-note"></p>
+    </section>
+
+    <!-- 标签页 -->
+    <section class="hidden" id="tabs-section">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="pane-preset">预设与参数</button>
+        <button class="tab-btn" data-tab="pane-post">后期与导出</button>
+      </div>
+
+      <div class="pane" id="pane-preset">
+        <div class="sec-title"><span class="dot"></span>场景预设</div>
+        <div class="preset-row">
+          <div class="preset-col">
+            <div class="note" style="margin:0 0 8px;">内置场景预设</div>
+            <div class="segmented" id="preset-list">
+              <button class="seg" data-preset="backlight">逆光</button>
+              <button class="seg" data-preset="silhouette">剪影</button>
+              <button class="seg" data-preset="dark">暗环境</button>
+              <button class="seg" data-preset="highlight">高亮</button>
+            </div>
+          </div>
+          <div class="preset-col custom">
+            <div class="note" style="margin:0 0 8px;">自定义预设 · 选中亦有拍摄参数建议 · ✎ 改名 · × 删除</div>
+            <div class="chips" id="custom-presets"></div>
+            <div id="custom-ref-box" class="custom-ref-box hidden">
+              <div class="ref-label">当前预设参考图（点击放大，原图）</div>
+              <img id="custom-ref-img" alt="自定义预设参考图" decoding="async" />
+              <div class="note" id="custom-ref-name"></div>
+            </div>
+            <div class="save-area">
+              <input type="file" id="ref-input" accept="image/*" />
+              <button id="save-preset" class="btn btn-secondary btn-sm">保存预设</button>
+              <button id="reset-presets" class="btn btn-secondary btn-sm" title="重新读取本地存储并重置自定义预设列表">重置</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-title" style="margin-top:12px;"><span class="dot"></span>专业模式建议参数</div>
+        <table class="params-table">
+          <thead><tr><th>参数</th><th>建议值</th></tr></thead>
+          <tbody id="suggest-params-body"></tbody>
+        </table>
+        <p class="note" id="preset-note"></p>
+      </div>
+
+      <div class="pane hidden" id="pane-post">
+        <div class="toolbar sticky-actions">
+          <button id="process-btn" class="btn btn-primary">一键优化</button>
+          <button id="stage-btn" class="btn btn-secondary">暂存</button>
+          <button id="clear-staged-btn" class="btn btn-danger">清空暂存</button>
+          <button id="download-btn" class="btn btn-secondary hidden">下载成片</button>
+        </div>
+
+        <div id="staged-images" class="staged-grid"></div>
+        <div id="staged-empty" class="empty-tip">暂存区为空。优化后点“暂存”，照片显示在此。</div>
+
+        <div class="sec-title" style="margin-top:12px;"><span class="dot"></span>对比原图 / 优化</div>
+        <button id="compare-btn" class="btn btn-secondary btn-sm">展开对比</button>
+        <div id="compare-container" class="hidden">
+          <div class="compare-grid">
+            <div class="compare-card"><div class="c-label">原图</div><img id="original-preview" alt="原图预览" /></div>
+            <div class="compare-card"><div class="c-label">优化后</div><img id="processed-preview" alt="优化后预览" /></div>
+          </div>
+          <p class="note">点击缩略图可放大查看原尺寸。</p>
+        </div>
+
+        <div class="sec-title" style="margin-top:12px;"><span class="dot"></span>Lightroom 参数建议</div>
+        <ul class="lr-list" id="lr-params"></ul>
+        <p class="note">一键出片基于 JPEG；追求极限画质请用 RAW + Lightroom 精修。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="edge">边界说明：参数为“起手参数”，非精确测光表；色温为工程估算（误差约 ±1000K）；所有处理均在本地完成，不上传服务器。适用于各品牌支持专业/手动模式的手机。</div></footer>
+
+  <div id="toast-root"></div>
+  <div id="lightbox">
+    <button class="lb-close" id="lb-close">×</button>
+    <img id="lb-img" alt="放大预览" />
+    <div class="lb-title" id="lb-title"></div>
+  </div>
+
+  <script>
+    (function () {
+      /* ==================== 常量（魔法数字集中管理） ==================== */
+      const WB_MIX = 0.6;                     // 白平衡建议中"现场色温"权重
+      const SHUTTER_LIST = ['1/4000','1/2000','1/1000','1/500','1/250','1/125','1/60','1/30','1/15','1/8','1/4','1/2','1"','2"','4"'];
+      const HIST = { darkMax: 15, brightMin: 240, overRatio: 0.05, underRatio: 0.05, hiStd: 70, loStd: 25 };
+      const ANALYZE_MAX = 200;                // 主图分析用最大边
+      const THUMB_SIDE = 240;                 // 参考图统计/降级缩略图最大边
+      const POST_MAX = 3000;                  // 一键后期处理最大边
+
+      /* ==================== 状态 ==================== */
+      const state = {
+        currentImage: null, currentFileName: '', originalImageUrl: null,
+        analysis: null, selectedPreset: null, customPresets: [],
+        processedBlob: null, processedBlobUrl: null, stagedImages: [],
+      };
+      const $ = id => document.getElementById(id);
+      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+      /* ==================== DOM 引用（统一收纳） ==================== */
+      const el = {
+        dropZone: $('drop-zone'), photoInput: $('photo-input'),
+        uploadPreview: $('upload-preview'), uploadThumb: $('upload-thumb'), uploadFname: $('upload-fname'),
+        reselectBtn: $('reselect-btn'), analysisPanel: $('analysis-panel'), tabsSection: $('tabs-section'),
+        brightness: $('brightness-value'), colorTemp: $('color-temp-value'), avgRgb: $('avg-rgb-value'),
+        histogram: $('histogram'), histNote: $('histogram-note'),
+        presetList: $('preset-list'), customPresets: $('custom-presets'),
+        suggestBody: $('suggest-params-body'), presetNote: $('preset-note'),
+        refInput: $('ref-input'), savePreset: $('save-preset'), resetPresets: $('reset-presets'),
+        processBtn: $('process-btn'), stageBtn: $('stage-btn'), clearStaged: $('clear-staged-btn'), downloadBtn: $('download-btn'),
+        stagedImages: $('staged-images'), stagedEmpty: $('staged-empty'),
+        compareBtn: $('compare-btn'), compareContainer: $('compare-container'),
+        originalPreview: $('original-preview'), processedPreview: $('processed-preview'),
+        lrList: $('lr-params'), toastRoot: $('toast-root'),
+        lightbox: $('lightbox'), lbImg: $('lb-img'), lbTitle: $('lb-title'),
+        introModal: $('intro-modal'), introClose: $('intro-close'),
+        customRefBox: $('custom-ref-box'), customRefImg: $('custom-ref-img'), customRefName: $('custom-ref-name'),
+      };
+
+      /* ==================== 通用工具 ==================== */
+      function toast(msg, type = 'info') {
+        const t = document.createElement('div');
+        t.className = 'toast ' + type; t.textContent = msg;
+        el.toastRoot.appendChild(t);
+        setTimeout(() => t.remove(), 2600);
+      }
+      function openLightbox(src, title) { el.lbImg.src = src; el.lbTitle.textContent = title || ''; el.lightbox.classList.add('open'); }
+      function closeLightbox() { el.lightbox.classList.remove('open'); el.lbImg.src = ''; }
+
+      /* ==================== IndexedDB：高清原图存储 ====================
+         localStorage 仅约 5MB，存不了手机原图；IndexedDB 是浏览器内置
+         大容量异步数据库，可存 Blob，零依赖、不上传服务器。 */
+      let idbDB = null;
+      function idbOpen() {
+        if (idbDB) return Promise.resolve(idbDB);
+        if (!window.indexedDB) return Promise.reject(new Error('no-idb'));
+        return new Promise((res, rej) => {
+          const r = window.indexedDB.open('root-presets-db', 1);
+          r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('images')) r.result.createObjectStore('images', { keyPath: 'id' }); };
+          r.onsuccess = () => { idbDB = r.result; res(idbDB); };
+          r.onerror = () => rej(r.error || new Error('idb-open-failed'));
+        });
+      }
+      /* 通用请求包装：一个函数覆盖 put/get/delete 三种事务 */
+      function idbRequest(mode, fn) {
+        return idbOpen().then(db => new Promise((res, rej) => {
+          const tx = db.transaction('images', mode);
+          const req = fn(tx.objectStore('images'));
+          tx.oncomplete = () => res(req.result);
+          tx.onerror = () => rej(tx.error);
+        }));
+      }
+      const idbPut = (id, blob, type) => idbRequest('readwrite', s => s.put({ id, blob, type }));
+      const idbGet = (id) => idbRequest('readonly', s => s.get(id));
+      const idbDelete = (id) => idbRequest('readwrite', s => s.delete(id));
+      const safe = p => p.catch(() => null);   // 失败静默降级，保证功能可用
+      async function ensureIdb() { try { await idbOpen(); return true; } catch (e) { return false; } }
+
+      /* 预设图片地址：优先本次会话的原图 ObjectURL，其次旧数据缩略图 */
+      function presetImageUrl(cp) { return cp && (cp.imgUrl || cp.thumb) || null; }
+
+      /* ==================== 内置预设（含 isoMode） ==================== */
+      const builtinPresets = {
+        backlight: { name: '逆光', desc: '主体背对光源，保留暗部细节', targetL: 150, evOffset: 1.0, baseISO: 100, baseShutterIndex: 6, focus: '点测光/中央重点', wbOffset: 5200, isoMode: 'auto',
+          post: { brightness: 25, contrast: -10, saturation: 5, colorTempR: 0.04, colorTempB: 0 }, lr: { exposure: 0.7, contrast: -10, highlights: -50, shadows: 35, whites: 10, blacks: -5, temp: 5500, tint: 5, saturation: 8 } },
+        silhouette: { name: '剪影', desc: '强调轮廓，压暗主体', targetL: 80, evOffset: -1.7, baseISO: 100, baseShutterIndex: 4, focus: '点测光/高光', wbOffset: 6200, isoMode: 'low',
+          post: { brightness: -25, contrast: 15, saturation: -10, colorTempR: 0, colorTempB: 0.04 }, lr: { exposure: -0.8, contrast: 20, highlights: -20, shadows: -30, whites: 15, blacks: 10, temp: 6000, tint: -5, saturation: -8 } },
+        dark: { name: '暗环境', desc: '低光提亮，控制噪点', targetL: 120, evOffset: 0.3, baseISO: 800, baseShutterIndex: 8, focus: '自动/手动', wbOffset: 4600, isoMode: 'high',
+          post: { brightness: 35, contrast: -5, saturation: 5, colorTempR: 0.02, colorTempB: 0 }, lr: { exposure: 0.5, contrast: -5, highlights: -30, shadows: 40, whites: 5, blacks: -10, temp: 4500, tint: 5, saturation: 5, noiseReduction: 20 } },
+        highlight: { name: '高亮', desc: '强光/雪景/沙滩，防过曝', targetL: 110, evOffset: -0.7, baseISO: 50, baseShutterIndex: 3, focus: '点测光/高光', wbOffset: 6800, isoMode: 'low',
+          post: { brightness: -20, contrast: 10, saturation: -5, colorTempR: 0, colorTempB: 0.04 }, lr: { exposure: -0.4, contrast: 15, highlights: -60, shadows: 0, whites: -10, blacks: 5, temp: 6500, tint: 0, saturation: -5 } }
+      };
+
+      /* ==================== 统计分析 ==================== */
+      /* withHist=true 时才计算 256 桶直方图（仅主图需要）；参考图传 false */
+      function computeStats(data, n, withHist) {
+        const hist = withHist ? new Array(256).fill(0) : null;
+        let sL = 0, sR = 0, sG = 0, sB = 0, sS = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b; // Rec.709 感知亮度
+          sL += lum; sR += r; sG += g; sB += b; sS += lum * lum;
+          if (hist) hist[clamp(Math.floor(lum), 0, 255)]++;
+        }
+        const L = sL / n, aR = sR / n, aG = sG / n, aB = sB / n;
+        return {
+          L, avgR: aR, avgG: aG, avgB: aB,
+          stdDev: Math.sqrt(Math.max(0, sS / n - L * L)),
+          saturation: (Math.max(aR, aG, aB) - Math.min(aR, aG, aB)) / 255,
+          /* 工程近似：RGB 差值线性映射色温，误差约 ±1000K */
+          colorTemp: clamp(Math.round(5500 - (aR - aB) / 255 * 4000), 2000, 10000),
+          histogram: hist,
+        };
+      }
+      function analyzeImage(img) {
+        const s = Math.min(1, ANALYZE_MAX / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, w, h);
+        const d = ctx.getImageData(0, 0, w, h);
+        const st = computeStats(d.data, w * h, true);
+        st.maxHistCount = Math.max(...st.histogram);
+        return st;
+      }
+
+      /* ==================== 快速获取参考图小尺寸源 ====================
+         优先 createImageBitmap(resizeWidth)：跳过全尺寸解码，只用于风格
+         统计，展示与持久化一律用原图。 */
+      function fileSmallFallback(file) {
+        return new Promise((res, rej) => {
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            const s = Math.min(1, THUMB_SIDE / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.width * s));
+            c.height = Math.max(1, Math.round(img.height * s));
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            URL.revokeObjectURL(url);
+            res(c);
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('load')); };
+          img.src = url;
+        });
+      }
+      function getSmallSource(file) {
+        if (window.createImageBitmap) {
+          return createImageBitmap(file, { resizeWidth: THUMB_SIDE, resizeQuality: 'high' })
+            .catch(() => fileSmallFallback(file));
+        }
+        return fileSmallFallback(file);
+      }
+
+      /* ==================== 渲染 ==================== */
+      function drawHistogram(hist, max) {
+        const ctx = el.histogram.getContext('2d'), W = el.histogram.width, H = el.histogram.height;
+        ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+        const bw = W / 256, sy = max > 0 ? H / max : 0; ctx.fillStyle = '#d4a94e';
+        for (let i = 0; i < 256; i++) { const bh = hist[i] * sy; ctx.fillRect(i * bw, H - bh, Math.max(1, bw - .5), bh); }
+      }
+      /* 直方图文字解读：阈值集中在 HIST 常量 */
+      function updateHistNote(a) {
+        const total = a.histogram.reduce((s, v) => s + v, 0) || 1;
+        let dark = 0, bright = 0;
+        for (let i = 0; i <= HIST.darkMax; i++) dark += a.histogram[i];
+        for (let i = HIST.brightMin; i <= 255; i++) bright += a.histogram[i];
+        const dR = dark / total, bR = bright / total; let msg;
+        if (bR > HIST.overRatio) msg = '高光溢出（右端堆积），建议适当 -EV 或加快快门';
+        else if (dR > HIST.underRatio) msg = '暗部丢失（左端堆积），建议适当 +EV 或放慢快门';
+        else if (a.stdDev > HIST.hiStd) msg = '高对比场景，注意明暗两端细节';
+        else if (a.stdDev < HIST.loStd) msg = '低对比场景，画面偏灰';
+        else msg = '曝光分布均匀';
+        el.histNote.textContent = msg;
+      }
+
+      function renderAnalysis() {
+        if (!state.analysis) return;
+        const a = state.analysis;
+        el.brightness.textContent = Math.round(a.L * 10) / 10;
+        el.colorTemp.textContent = a.colorTemp;
+        el.avgRgb.textContent = `${Math.round(a.avgR)} · ${Math.round(a.avgG)} · ${Math.round(a.avgB)}`;
+        drawHistogram(a.histogram, a.maxHistCount);
+        updateHistNote(a);
+        el.analysisPanel.classList.remove('hidden');
+        el.tabsSection.classList.remove('hidden');
+        if (state.selectedPreset) { renderSuggest(state.selectedPreset); renderLR(state.selectedPreset, a); }
+        else { el.suggestBody.innerHTML = ''; el.presetNote.textContent = '请选择一个场景预设'; }
+      }
+
+      function renderSeg() { el.presetList.querySelectorAll('.seg').forEach(b => b.classList.toggle('active', b.dataset.preset === state.selectedPreset)); }
+
+      /* 统一刷新入口：避免多处重复渲染 */
+      function refreshViews() {
+        if (state.analysis) renderSuggest(state.selectedPreset);
+        else { renderSeg(); renderChips(); }
+      }
+
+      function showCustomRef(cp) {
+        const url = cp ? presetImageUrl(cp) : null;
+        if (url) {
+          el.customRefImg.src = url;
+          el.customRefName.textContent = cp.name;
+          el.customRefBox.classList.remove('hidden');
+        } else {
+          el.customRefBox.classList.add('hidden');
+          el.customRefImg.src = '';
+          el.customRefName.textContent = '';
+        }
+      }
+      el.customRefImg.addEventListener('click', () => {
+        if (el.customRefImg.src) openLightbox(el.customRefImg.src, el.customRefName.textContent || '参考图');
+      });
+
+      /* ==================== 持久化 ==================== */
+      /* localStorage 只存 8 个风格字段 + 旧数据兼容 thumb；原图在 IndexedDB */
+      function loadStoredPresets() {
+        try {
+          const raw = JSON.parse(localStorage.getItem('rootCustomPresets') || '[]');
+          if (!Array.isArray(raw)) return [];
+          return raw.map(p => ({
+            id: p.id, name: p.name,
+            L: p.L, avgR: p.avgR, avgG: p.avgG, avgB: p.avgB,
+            colorTemp: p.colorTemp, stdDev: p.stdDev, saturation: p.saturation,
+            thumb: p.thumb || null,
+          }));
+        } catch (e) { return []; }
+      }
+      function persistPresets() {
+        try {
+          const slim = state.customPresets.map(p => ({
+            id: p.id, name: p.name,
+            L: p.L, avgR: p.avgR, avgG: p.avgG, avgB: p.avgB,
+            colorTemp: p.colorTemp, stdDev: p.stdDev, saturation: p.saturation,
+            thumb: p.thumb || null,
+          }));
+          localStorage.setItem('rootCustomPresets', JSON.stringify(slim));
+        } catch (e) { toast('存储失败：空间不足，请删除部分预设', 'error'); }
+      }
+
+      /* 重置：重新读元数据 + 从 IndexedDB 取回原图 */
+      async function resetCustomPresets() {
+        state.customPresets.forEach(p => { if (p.imgUrl) URL.revokeObjectURL(p.imgUrl); });
+        state.customPresets = loadStoredPresets();
+        if (await ensureIdb()) {
+          for (const p of state.customPresets) {
+            if (p.thumb || p.imgUrl) continue;
+            const rec = await safe(idbGet(p.id));
+            if (rec && rec.blob) p.imgUrl = URL.createObjectURL(rec.blob);
+          }
+        }
+        if (state.selectedPreset && state.selectedPreset.startsWith('custom:')) {
+          const id = Number(state.selectedPreset.split(':')[1]);
+          const cp = state.customPresets.find(p => p.id === id);
+          if (cp) showCustomRef(cp);
+          else { state.selectedPreset = null; showCustomRef(null); }
+        }
+        refreshViews();
+        toast('已重置自定义预设', 'success');
+      }
+
+      /* ==================== 自定义预设列表（事件委托） ==================== */
+      function renderChips() {
+        el.customPresets.innerHTML = '';
+        if (!state.customPresets.length) {
+          el.customPresets.innerHTML = '<span class="note">暂无自定义预设，在下方上传参考图即可保存。</span>';
+          showCustomRef(null);
+          return;
+        }
+        state.customPresets.forEach(cp => {
+          const chip = document.createElement('span');
+          chip.className = 'chip' + (state.selectedPreset === `custom:${cp.id}` ? ' active' : '');
+          chip.dataset.id = cp.id;
+          const url = presetImageUrl(cp);
+          if (url) {
+            const th = document.createElement('img');
+            th.className = 'chip-thumb'; th.src = url; th.alt = cp.name;
+            th.decoding = 'async';
+            th.title = '使用此预设并查看参考图';
+            chip.appendChild(th);
+          }
+          const name = document.createElement('span');
+          name.className = 'name'; name.textContent = cp.name;
+          name.title = '使用此预设并查看参考图';
+          const edit = document.createElement('button');
+          edit.className = 'edit'; edit.innerHTML = '✎'; edit.title = '改名';
+          edit.dataset.action = 'edit';
+          const del = document.createElement('button');
+          del.className = 'del'; del.innerHTML = '×'; del.title = '删除此预设';
+          del.dataset.action = 'del';
+          chip.appendChild(name); chip.appendChild(edit); chip.appendChild(del);
+          el.customPresets.appendChild(chip);
+        });
+      }
+
+      el.customPresets.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        const id = Number(chip.dataset.id);
+        const cp = state.customPresets.find(p => p.id === id);
+        if (!cp) return;
+        const action = e.target.dataset.action;
+        if (action === 'del') deleteCustom(id);
+        else if (action === 'edit') startRename(id);
+        else selectCustom(cp);
+      });
+
+      function selectCustom(cp) {
+        state.selectedPreset = `custom:${cp.id}`;
+        showCustomRef(cp);
+        refreshViews();
+      }
+
+      /* 删除：元数据 + IndexedDB 原图 + ObjectURL 同步清理，立即生效 */
+      function deleteCustom(id) {
+        const i = state.customPresets.findIndex(p => p.id === id);
+        if (i === -1) return;
+        const cp = state.customPresets[i];
+        if (cp.imgUrl) URL.revokeObjectURL(cp.imgUrl);
+        state.customPresets.splice(i, 1);
+        if (state.selectedPreset === `custom:${id}`) {
+          state.selectedPreset = null;
+          showCustomRef(null);
+        }
+        persistPresets();
+        safe(idbDelete(id));
+        refreshViews();
+        toast('自定义预设已删除', 'success');
+      }
+
+      function startRename(id) {
+        const cp = state.customPresets.find(p => p.id === id);
+        if (!cp) return;
+        const chipEl = el.customPresets.querySelector(`.chip[data-id="${id}"]`);
+        const nameEl = chipEl && chipEl.querySelector('.name');
+        if (!nameEl) return;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'rename-input';
+        input.value = cp.name;
+        nameEl.replaceWith(input);
+        input.focus(); input.select();
+        let done = false;
+        const commit = () => {
+          if (done) return;
+          done = true;
+          const newName = input.value.trim();
+          if (newName && newName !== cp.name) {
+            cp.name = newName;
+            persistPresets();
+            if (state.selectedPreset === `custom:${cp.id}`) el.customRefName.textContent = newName;
+            toast('预设已改名：' + newName, 'success');
+          }
+          renderChips();
+          if (state.selectedPreset === `custom:${cp.id}` && state.analysis) renderSuggest(state.selectedPreset);
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+          else if (ev.key === 'Escape') { input.value = cp.name; input.blur(); }
+        });
+      }
+
+      /* ==================== 动态拍摄参数建议 ==================== */
+      function suggestParams(key) {
+        if (!state.analysis) return null;
+        const a = state.analysis, L = a.L, T = a.colorTemp;
+
+        /* 自定义预设：以参考图为拍摄目标 */
+        if (key && key.startsWith('custom:')) {
+          const cp = state.customPresets.find(p => p.id === Number(key.split(':')[1]));
+          if (!cp) return null;
+          const targetL = cp.L;
+          const dEv = (L - targetL) / 25;          // 当前亮度与参考亮度的 EV 偏差
+          let baseIdx = 7;                          // 按现场亮度选基准快门
+          if (L >= 170) baseIdx = 3; else if (L >= 130) baseIdx = 4;
+          else if (L >= 100) baseIdx = 5; else if (L >= 70) baseIdx = 6;
+          else if (L >= 40) baseIdx = 7; else if (L >= 20) baseIdx = 8; else baseIdx = 9;
+          const idx = clamp(baseIdx - Math.round(dEv), 0, SHUTTER_LIST.length - 1);
+          let iso = 100;
+          if (L < 50) iso = Math.min(6400, iso * 3);
+          else if (L < 90) iso = Math.min(3200, iso * 2);
+          else if (L > 200) iso = Math.max(50, Math.round(iso / 2));
+          const ev = clamp(Math.round((-dEv) * 0.5 * 10) / 10, -2, 2);
+          const wb = clamp(Math.round((T * WB_MIX + cp.colorTemp * (1 - WB_MIX)) / 100) * 100, 2500, 10000);
+          const focus = Math.abs(L - targetL) > 30 ? '点测光/中央重点' : '自动';
+          return {
+            name: cp.name,
+            params: [
+              { label: '曝光补偿 EV', value: (ev > 0 ? '+' : '') + ev.toFixed(1) },
+              { label: 'ISO', value: Math.round(iso) },
+              { label: '快门速度', value: SHUTTER_LIST[idx] },
+              { label: '白平衡', value: `${wb} K` },
+              { label: '对焦模式', value: focus },
+            ],
+            note: `以参考图为目标（亮度 ${Math.round(cp.L)} / 色温 ${cp.colorTemp}K）：先按上述参数拍摄，再用该预设一键后期贴近参考风格。`,
+          };
+        }
+
+        if (!key) return null;
+        const p = builtinPresets[key]; if (!p) return null;
+        const dEv = (L - p.targetL) / 25;
+        const idx = clamp(p.baseShutterIndex - Math.round(dEv), 0, SHUTTER_LIST.length - 1);
+
+        /* ISO 按 isoMode 计算，避免剪影/高亮被暗照片拉高 ISO */
+        let iso = p.baseISO;
+        if (p.isoMode === 'low') {
+          if (L > 200) iso = Math.max(50, Math.round(iso / 2));
+        } else if (p.isoMode === 'high') {
+          if (L < 50) iso = Math.min(6400, iso * 3);
+          else if (L < 90) iso = Math.min(3200, iso * 2);
+        } else {
+          if (L < 50) iso = Math.min(6400, iso * 3);
+          else if (L < 90) iso = Math.min(3200, iso * 2);
+          else if (L > 200) iso = Math.max(50, Math.round(iso / 2));
+        }
+
+        const ev = Math.round((p.evOffset - dEv * .5) * 10) / 10;
+        const wb = clamp(Math.round((T * WB_MIX + p.wbOffset * (1 - WB_MIX)) / 100) * 100, 2500, 10000);
+        return { name: p.name, params: [
+          { label: '曝光补偿 EV', value: (ev > 0 ? '+' : '') + ev.toFixed(1) },
+          { label: 'ISO', value: Math.round(iso) },
+          { label: '快门速度', value: SHUTTER_LIST[idx] },
+          { label: '白平衡', value: `${wb} K` }, { label: '对焦模式', value: p.focus } ], note: p.desc };
+      }
+
+      function renderSuggest(key) {
+        if (!state.analysis) return;
+        const s = suggestParams(key);
+        if (!s) { el.suggestBody.innerHTML = ''; el.presetNote.textContent = '请选择一个场景预设'; return; }
+        el.suggestBody.innerHTML = '';
+        if (!s.params.length) el.suggestBody.innerHTML = '<tr><td colspan="2">暂无可用拍摄参数</td></tr>';
+        else s.params.forEach(p => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${p.label}</td><td>${p.value}</td>`; el.suggestBody.appendChild(tr); });
+        el.presetNote.textContent = s.note || '';
+        renderSeg(); renderChips();
+      }
+
+      /* ==================== 后期像素处理 ==================== */
+      function applyPost(imageData, adj) {
+        const d = imageData.data;
+        const b = adj.brightness || 0, c = adj.contrast || 0, s = adj.saturation || 0, tR = adj.colorTempR || 0, tB = adj.colorTempB || 0;
+        const cf = (259 * (c + 255)) / (255 * (259 - c));
+        const sf = 1 + s / 100;
+        for (let i = 0; i < d.length; i += 4) {
+          let r = d[i], g = d[i + 1], bb = d[i + 2];
+          r *= (1 + tR); bb *= (1 + tB);
+          r += b; g += b; bb += b;
+          r = (r - 128) * cf + 128; g = (g - 128) * cf + 128; bb = (bb - 128) * cf + 128;
+          const gray = 0.2126 * r + 0.7152 * g + 0.0722 * bb;
+          r = gray + (r - gray) * sf; g = gray + (g - gray) * sf; bb = gray + (bb - gray) * sf;
+          d[i] = clamp(r, 0, 255); d[i + 1] = clamp(g, 0, 255); d[i + 2] = clamp(bb, 0, 255);
+        }
+      }
+      /* 内置预设后期参数动态化：偏离目标越多补正越大 */
+      function getAdj(key, analysis) {
+        if (!analysis) return null;
+        if (key && key.startsWith('custom:')) {
+          const cp = state.customPresets.find(p => p.id === Number(key.split(':')[1]));
+          if (!cp) return null;
+          return { brightness: clamp(cp.L - analysis.L, -80, 80),
+            contrast: clamp(Math.round((cp.stdDev - analysis.stdDev) * 10), -50, 50),
+            saturation: clamp(Math.round((cp.saturation - analysis.saturation) * 100), -30, 30),
+            colorTempR: cp.avgR / Math.max(1, analysis.avgR) - 1, colorTempB: cp.avgB / Math.max(1, analysis.avgB) - 1 };
+        }
+        const p = builtinPresets[key];
+        if (!p) return null;
+        return {
+          brightness: clamp(p.post.brightness + Math.round((p.targetL - analysis.L) * 0.6), -100, 100),
+          contrast: clamp(p.post.contrast + Math.round((45 - analysis.stdDev) * 0.5), -50, 50),
+          saturation: p.post.saturation,
+          colorTempR: p.post.colorTempR,
+          colorTempB: p.post.colorTempB,
+        };
+      }
+
+      function processImage() {
+        if (!state.currentImage || !state.selectedPreset || !state.analysis) { toast('请先上传照片并选择预设', 'error'); return; }
+        const img = state.currentImage, scale = Math.min(1, POST_MAX / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        const id = ctx.getImageData(0, 0, c.width, c.height);
+        const adj = getAdj(state.selectedPreset, state.analysis); if (adj) applyPost(id, adj);
+        ctx.putImageData(id, 0, 0);
+        c.toBlob(blob => {
+          if (!blob) { toast('处理失败', 'error'); return; }
+          if (state.processedBlobUrl) URL.revokeObjectURL(state.processedBlobUrl);
+          state.processedBlob = blob; state.processedBlobUrl = URL.createObjectURL(blob);
+          el.downloadBtn.classList.remove('hidden'); el.processedPreview.src = state.processedBlobUrl;
+          renderLR(state.selectedPreset, state.analysis); toast('优化完成，可暂存或下载', 'success');
+        }, 'image/jpeg', 0.95);
+      }
+
+      /* ==================== 暂存 ==================== */
+      function stageImage() {
+        if (!state.processedBlob) { toast('请先执行“一键优化”', 'error'); return; }
+        const id = Date.now() + '-' + Math.floor(Math.random() * 1e4);
+        const base = (state.currentFileName.replace(/\.[^/.]+$/, '') || 'photo');
+        const fileName = `root_${base}_${state.stagedImages.length + 1}.jpg`;
+        const blob = state.processedBlob.slice(0, state.processedBlob.size, 'image/jpeg');
+        state.stagedImages.push({ id, fileName, blobUrl: URL.createObjectURL(blob) });
+        renderStaged(); toast('已暂存：' + fileName, 'success');
+      }
+      function renderStaged() {
+        el.stagedImages.innerHTML = '';
+        el.stagedEmpty.classList.toggle('hidden', state.stagedImages.length > 0);
+        state.stagedImages.forEach(item => {
+          const card = document.createElement('div'); card.className = 'stage-card';
+          const img = document.createElement('img'); img.className = 'thumb'; img.src = item.blobUrl;
+          img.addEventListener('click', () => openLightbox(item.blobUrl, item.fileName));
+          const info = document.createElement('div'); info.className = 'info';
+          const fn = document.createElement('div'); fn.className = 'fname'; fn.textContent = item.fileName;
+          fn.addEventListener('click', () => openLightbox(item.blobUrl, item.fileName));
+          const del = document.createElement('button'); del.className = 'del'; del.innerHTML = '×';
+          del.addEventListener('click', e => { e.stopPropagation(); deleteStaged(item.id); });
+          card.addEventListener('contextmenu', e => { e.preventDefault(); if (confirm(`删除“${item.fileName}”？`)) deleteStaged(item.id); });
+          info.appendChild(fn); card.appendChild(img); card.appendChild(del); card.appendChild(info);
+          el.stagedImages.appendChild(card);
+        });
+      }
+      function deleteStaged(id) {
+        const i = state.stagedImages.findIndex(x => x.id === id);
+        if (i === -1) return;
+        URL.revokeObjectURL(state.stagedImages[i].blobUrl);
+        state.stagedImages.splice(i, 1); renderStaged(); toast('已删除该暂存照片', 'success');
+      }
+      function clearStaged() {
+        if (!state.stagedImages.length) { toast('暂存区已为空', 'info'); return; }
+        state.stagedImages.forEach(i => URL.revokeObjectURL(i.blobUrl));
+        state.stagedImages = []; renderStaged(); toast('暂存区已清空', 'success');
+      }
+      function downloadAll() {
+        if (!state.stagedImages.length) { toast('暂存区为空，无法下载', 'error'); return; }
+        state.stagedImages.forEach((item, i) => setTimeout(() => {
+          const a = document.createElement('a'); a.href = item.blobUrl; a.download = item.fileName; a.click();
+        }, i * 500));
+        toast(`开始下载 ${state.stagedImages.length} 张`, 'info');
+      }
+      function toggleCompare() {
+        if (!state.originalImageUrl || !state.processedBlobUrl) { toast('请先上传原图并优化', 'error'); return; }
+        el.compareContainer.classList.toggle('hidden');
+        el.compareBtn.textContent = el.compareContainer.classList.contains('hidden') ? '展开对比' : '收起对比';
+        el.originalPreview.src = state.originalImageUrl; el.processedPreview.src = state.processedBlobUrl;
+        el.originalPreview.onclick = () => openLightbox(state.originalImageUrl, '原图（原尺寸）');
+        el.processedPreview.onclick = () => openLightbox(state.processedBlobUrl, '优化后（原尺寸）');
+      }
+
+      /* ==================== Lightroom 参数 ==================== */
+      function renderLR(key, analysis) {
+        if (!analysis) return;
+        el.lrList.innerHTML = '';
+        let lr = null;
+        if (key && key.startsWith('custom:')) {
+          const cp = state.customPresets.find(p => p.id === Number(key.split(':')[1])); if (!cp) return;
+          lr = { exposure: Math.round((cp.L - analysis.L) / 50 * 10) / 10,
+            contrast: clamp(Math.round((cp.stdDev - analysis.stdDev) * 20), -50, 50), highlights: 0,
+            shadows: Math.round((cp.L - analysis.L) / 2), whites: 0, blacks: 0, temp: cp.colorTemp,
+            tint: clamp(Math.round((cp.avgG - analysis.avgG) * 20), -30, 30),
+            saturation: clamp(Math.round((cp.saturation - analysis.saturation) * 50), -30, 30) };
+        } else if (key) {
+          const p = builtinPresets[key]; if (!p) return;
+          lr = { ...p.lr };
+          /* 色温：预设目标为主(70%) + 现场实测为辅(30%)，不再被现场值覆盖 */
+          lr.temp = clamp(Math.round(p.lr.temp * 0.7 + analysis.colorTemp * 0.3), 2500, 10000);
+          /* 对比度/阴影随照片动态计算 */
+          lr.contrast = clamp(p.lr.contrast + Math.round((45 - analysis.stdDev) * 0.5), -50, 50);
+          lr.shadows = p.lr.shadows + Math.round((p.targetL - analysis.L) * 0.5);
+          lr.exposure = Math.round((p.lr.exposure + (p.targetL - analysis.L) / 50) * 10) / 10;
+        } else return;
+        const items = [
+          ['曝光度', lr.exposure > 0 ? `+${lr.exposure}` : lr.exposure], ['对比度', lr.contrast],
+          ['高光', lr.highlights ?? 0], ['阴影', lr.shadows ?? 0], ['白色色阶', lr.whites ?? 0],
+          ['黑色色阶', lr.blacks ?? 0], ['色温', `${lr.temp ?? 5500} K`], ['色调', lr.tint ?? 0], ['饱和度', lr.saturation ?? 0]
+        ];
+        if (lr.noiseReduction) items.push(['噪点消除', lr.noiseReduction]);
+        items.forEach(it => { const li = document.createElement('li'); li.innerHTML = `<span>${it[0]}</span><span>${it[1]}</span>`; el.lrList.appendChild(li); });
+      }
+
+      /* ==================== 上传 / 重置当前照片 ==================== */
+      function loadImageFile(file) {
+        if (!file || !file.type.startsWith('image/')) { toast('请上传图片文件', 'error'); return; }
+        if (state.originalImageUrl) URL.revokeObjectURL(state.originalImageUrl);
+        const url = URL.createObjectURL(file); state.originalImageUrl = url;
+        const img = new Image();
+        img.onload = () => {
+          state.currentImage = img; state.currentFileName = file.name; state.analysis = analyzeImage(img);
+          if (!state.selectedPreset) state.selectedPreset = 'backlight';
+          el.uploadThumb.src = url; el.uploadFname.textContent = file.name;
+          el.uploadPreview.classList.remove('hidden'); el.dropZone.classList.add('hidden');
+          renderAnalysis(); renderSeg(); renderChips();
+        };
+        img.onerror = () => { toast('图片加载失败', 'error'); URL.revokeObjectURL(url); state.originalImageUrl = null; };
+        img.src = url;
+      }
+      function resetPhoto() {
+        if (state.originalImageUrl) URL.revokeObjectURL(state.originalImageUrl);
+        if (state.processedBlobUrl) URL.revokeObjectURL(state.processedBlobUrl);
+        state.stagedImages.forEach(i => URL.revokeObjectURL(i.blobUrl));
+        Object.assign(state, { currentImage: null, currentFileName: '', originalImageUrl: null, analysis: null, processedBlob: null, processedBlobUrl: null, stagedImages: [] });
+        [el.analysisPanel, el.tabsSection].forEach(x => x.classList.add('hidden'));
+        el.uploadPreview.classList.add('hidden'); el.dropZone.classList.remove('hidden');
+        el.uploadThumb.src = ''; el.uploadFname.textContent = '';
+        el.brightness.textContent = '--'; el.colorTemp.textContent = '--'; el.avgRgb.textContent = '--';
+        el.histNote.textContent = '';
+        el.suggestBody.innerHTML = ''; el.presetNote.textContent = ''; el.lrList.innerHTML = '';
+        el.stagedImages.innerHTML = ''; el.stagedEmpty.classList.remove('hidden');
+        el.downloadBtn.classList.add('hidden'); el.compareContainer.classList.add('hidden'); el.compareBtn.textContent = '展开对比';
+        el.photoInput.value = ''; toast('已重置当前照片', 'info');
+      }
+
+      /* ==================== 事件绑定 ==================== */
+      el.introClose.addEventListener('click', () => el.introModal.classList.add('hidden'));
+      el.introModal.addEventListener('click', e => { if (e.target === el.introModal) el.introModal.classList.add('hidden'); });
+      el.lbClose = $('lb-close');
+      el.lbClose.addEventListener('click', closeLightbox);
+      el.lightbox.addEventListener('click', e => { if (e.target === el.lightbox) closeLightbox(); });
+
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.pane').forEach(p => p.classList.add('hidden'));
+        $(btn.dataset.tab).classList.remove('hidden');
+      }));
+
+      el.dropZone.addEventListener('click', () => el.photoInput.click());
+      el.dropZone.addEventListener('dragover', e => { e.preventDefault(); el.dropZone.classList.add('dragover'); });
+      el.dropZone.addEventListener('dragleave', () => el.dropZone.classList.remove('dragover'));
+      el.dropZone.addEventListener('drop', e => { e.preventDefault(); el.dropZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) loadImageFile(f); });
+      el.photoInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) loadImageFile(f); el.photoInput.value = ''; });
+      el.reselectBtn.addEventListener('click', resetPhoto);
+
+      el.presetList.querySelectorAll('.seg').forEach(btn => btn.addEventListener('click', () => {
+        state.selectedPreset = btn.dataset.preset;
+        showCustomRef(null);
+        refreshViews();
+      }));
+
+      /* ==================== 保存自定义预设（快速、不卡按钮） ==================== */
+      let savingPreset = false;
+      el.savePreset.addEventListener('click', async () => {
+        const f = el.refInput.files[0];
+        if (!f) { toast('请先选择参考图', 'error'); return; }
+        if (savingPreset) return;                    // 双击拦截
+        savingPreset = true;
+        el.savePreset.disabled = true;
+        el.savePreset.textContent = '处理中…';
+        const guard = setTimeout(() => {             // 20 秒保险：任何异常都恢复按钮
+          savingPreset = false;
+          el.savePreset.disabled = false;
+          el.savePreset.textContent = '保存预设';
+        }, 20000);
+        try {
+          const src = await getSmallSource(f);       // 小图仅用于风格统计（毫秒级）
+          let canvas;
+          if (src instanceof HTMLCanvasElement) canvas = src;
+          else {
+            canvas = document.createElement('canvas');
+            canvas.width = src.width; canvas.height = src.height;
+            canvas.getContext('2d').drawImage(src, 0, 0);
+            if (src.close) src.close();
+          }
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          const idData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const a = computeStats(idData.data, canvas.width * canvas.height, false);
+
+          const presetId = Date.now();
+          let fallbackThumb = null;
+          if (await ensureIdb()) {
+            const ok = await safe(idbPut(presetId, f, f.type));  // 原文件存 IndexedDB
+            if (!ok) fallbackThumb = canvas.toDataURL('image/jpeg', 0.55);
+          } else {
+            fallbackThumb = canvas.toDataURL('image/jpeg', 0.55); // 无 IDB 环境降级
+          }
+
+          state.customPresets.push({
+            id: presetId,
+            name: `自定义预设 ${state.customPresets.length + 1}`,
+            L: a.L, avgR: a.avgR, avgG: a.avgG, avgB: a.avgB,
+            colorTemp: a.colorTemp, stdDev: a.stdDev, saturation: a.saturation,
+            thumb: fallbackThumb,
+            imgUrl: URL.createObjectURL(f),           // 本次会话直接展示原图
+          });
+          persistPresets();
+          renderChips();
+          el.refInput.value = '';
+          toast('参考图已保存（高清原图）', 'success');
+        } catch (err) {
+          toast('参考图处理失败', 'error');
+        } finally {
+          clearTimeout(guard);
+          savingPreset = false;
+          el.savePreset.disabled = false;             // 成功/失败立即恢复，可连续保存
+          el.savePreset.textContent = '保存预设';
+        }
+      });
+
+      el.resetPresets.addEventListener('click', resetCustomPresets);
+      el.processBtn.addEventListener('click', processImage);
+      el.stageBtn.addEventListener('click', stageImage);
+      el.clearStaged.addEventListener('click', clearStaged);
+      el.downloadBtn.addEventListener('click', downloadAll);
+      el.compareBtn.addEventListener('click', toggleCompare);
+
+      /* ==================== 启动 ==================== */
+      (async function loadCustom() {
+        state.customPresets = loadStoredPresets();
+        renderChips(); renderSeg();
+        if (await ensureIdb()) {
+          let changed = false;
+          for (const p of state.customPresets) {
+            if (p.thumb || p.imgUrl) continue;        // 旧数据降级图或已有地址则跳过
+            const rec = await safe(idbGet(p.id));
+            if (rec && rec.blob) { p.imgUrl = URL.createObjectURL(rec.blob); changed = true; }
+          }
+          if (changed) renderChips();
+        }
+        if (state.selectedPreset && state.selectedPreset.startsWith('custom:')) {
+          const id = Number(state.selectedPreset.split(':')[1]);
+          const cp = state.customPresets.find(p => p.id === id);
+          if (cp) showCustomRef(cp);
+        }
+      })();
+    })();
+  </script>
+  <!-- 安卓壳（APK）内的保存能力；普通浏览器里该模块静默失败，不影响网页版 -->
+  <script type="module" src="/src/bridge.js"></script>
+</body>
+</html>
