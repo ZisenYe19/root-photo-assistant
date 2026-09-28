@@ -281,6 +281,23 @@
       </div>
 
       <div class="pane hidden" id="pane-post">
+        <div class="sec-title"><span class="dot"></span>专业模式拍摄的成片</div>
+        <div id="pro-wrap">
+          <div id="pro-drop-zone" class="dropzone">
+            <p>点击或拖拽上传专业模式拍摄的照片</p>
+            <input type="file" id="pro-input" accept="image/*" class="hidden" />
+          </div>
+          <div id="pro-preview" class="upload-preview hidden">
+            <img id="pro-thumb" class="thumb" alt="专业模式成片" />
+            <div class="meta">
+              <div class="fname" id="pro-fname">--</div>
+              <div class="note">待优化 · 上方光线分析仍属参考照片</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="pro-reselect-btn">重新选择</button>
+          </div>
+        </div>
+        <p class="note">流程：第一张普通模式照片放上方作“光线参考”（负责分析光线、给拍摄参数），这里放你按参数在专业模式实拍的照片（负责后期与 Lightroom 导出）。两处互不覆盖；上方参考照片重新选择时，这里会清空。</p>
+
         <div class="toolbar sticky-actions">
           <button id="process-btn" class="btn btn-primary">一键优化</button>
           <button id="stage-btn" class="btn btn-secondary">暂存</button>
@@ -329,8 +346,8 @@
 
       /* ==================== 状态 ==================== */
       const state = {
-        currentImage: null, currentFileName: '', originalImageUrl: null,
-        analysis: null, selectedPreset: null, customPresets: [],
+        currentImage: null, currentFileName: '', originalImageUrl: null, analysis: null, selectedPreset: null, customPresets: [],
+        proImage: null, proFileName: '', proImageUrl: null, proAnalysis: null,
         processedBlob: null, processedBlobUrl: null, stagedImages: [], savingToAlbum: false,
       };
       const $ = id => document.getElementById(id);
@@ -354,6 +371,8 @@
         lightbox: $('lightbox'), lbImg: $('lb-img'), lbTitle: $('lb-title'),
         introModal: $('intro-modal'), introClose: $('intro-close'),
         customRefBox: $('custom-ref-box'), customRefImg: $('custom-ref-img'), customRefName: $('custom-ref-name'),
+        proWrap: $('pro-wrap'), proDropZone: $('pro-drop-zone'), proInput: $('pro-input'),
+        proPreview: $('pro-preview'), proThumb: $('pro-thumb'), proFname: $('pro-fname'), proReselectBtn: $('pro-reselect-btn'),
       };
 
       /* ==================== 通用工具 ==================== */
@@ -794,20 +813,21 @@
       }
 
       function processImage() {
-        if (!state.currentImage || !state.selectedPreset || !state.analysis) { toast('请先上传照片并选择预设', 'error'); return; }
-        const img = state.currentImage, scale = Math.min(1, POST_MAX / Math.max(img.width, img.height));
+        const { img, analysis } = postTarget();
+        if (!img || !state.selectedPreset || !analysis) { toast('请先上传照片并选择预设', 'error'); return; }
+        const scale = Math.min(1, POST_MAX / Math.max(img.width, img.height));
         const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
         const ctx = c.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(img, 0, 0, c.width, c.height);
         const id = ctx.getImageData(0, 0, c.width, c.height);
-        const adj = getAdj(state.selectedPreset, state.analysis); if (adj) applyPost(id, adj);
+        const adj = getAdj(state.selectedPreset, analysis); if (adj) applyPost(id, adj);
         ctx.putImageData(id, 0, 0);
         c.toBlob(blob => {
           if (!blob) { toast('处理失败', 'error'); return; }
           if (state.processedBlobUrl) URL.revokeObjectURL(state.processedBlobUrl);
           state.processedBlob = blob; state.processedBlobUrl = URL.createObjectURL(blob);
           el.downloadBtn.classList.remove('hidden'); el.processedPreview.src = state.processedBlobUrl;
-          renderLR(state.selectedPreset, state.analysis); toast('优化完成，可暂存或下载', 'success');
+          renderLR(state.selectedPreset, analysis); toast('优化完成，可暂存或下载', 'success');
         }, 'image/jpeg', 0.95);
       }
 
@@ -815,7 +835,7 @@
       function stageImage() {
         if (!state.processedBlob) { toast('请先执行“一键优化”', 'error'); return; }
         const id = Date.now() + '-' + Math.floor(Math.random() * 1e4);
-        const base = (state.currentFileName.replace(/\.[^/.]+$/, '') || 'photo');
+        const base = (postTarget().name.replace(/\.[^/.]+$/, '') || 'photo');
         const fileName = `root_${base}_${state.stagedImages.length + 1}.jpg`;
         const blob = state.processedBlob.slice(0, state.processedBlob.size, 'image/jpeg');
         state.stagedImages.push({ id, fileName, blobUrl: URL.createObjectURL(blob) });
@@ -824,6 +844,9 @@
       function renderStaged() {
         el.stagedImages.innerHTML = '';
         el.stagedEmpty.classList.toggle('hidden', state.stagedImages.length > 0);
+        el.stagedEmpty.textContent = state.proImage
+          ? '暂存区为空。优化后点“暂存”，照片显示在此。'
+          : '暂存区为空。上方未上传专业模式成片，一键优化将对第一张参考照片生效。';
         state.stagedImages.forEach(item => {
           const card = document.createElement('div'); card.className = 'stage-card';
           const img = document.createElement('img'); img.className = 'thumb'; img.src = item.blobUrl;
@@ -917,6 +940,7 @@
         img.onload = () => {
           state.currentImage = img; state.currentFileName = file.name; state.analysis = analyzeImage(img);
           if (!state.selectedPreset) state.selectedPreset = 'backlight';
+          clearProPhoto();   // 换了参考照片，上一张成片与结果都不再对应
           el.uploadThumb.src = url; el.uploadFname.textContent = file.name;
           el.uploadPreview.classList.remove('hidden'); el.dropZone.classList.add('hidden');
           renderAnalysis(); renderSeg(); renderChips();
@@ -929,6 +953,7 @@
         if (state.processedBlobUrl) URL.revokeObjectURL(state.processedBlobUrl);
         state.stagedImages.forEach(i => URL.revokeObjectURL(i.blobUrl));
         Object.assign(state, { currentImage: null, currentFileName: '', originalImageUrl: null, analysis: null, processedBlob: null, processedBlobUrl: null, stagedImages: [] });
+        clearProPhoto();
         [el.analysisPanel, el.tabsSection].forEach(x => x.classList.add('hidden'));
         el.uploadPreview.classList.add('hidden'); el.dropZone.classList.remove('hidden');
         el.uploadThumb.src = ''; el.uploadFname.textContent = '';
@@ -938,6 +963,48 @@
         el.stagedImages.innerHTML = ''; el.stagedEmpty.classList.remove('hidden');
         el.downloadBtn.classList.add('hidden'); el.compareContainer.classList.add('hidden'); el.compareBtn.textContent = '展开对比';
         el.photoInput.value = ''; toast('已重置当前照片', 'info');
+      }
+
+      /* ==================== 后期对象：优先专业模式成片 ====================
+         没有上传成片时保持原行为（对上方那张照片做后期），保证兼容。 */
+      function postTarget() {
+        return state.proImage
+          ? { img: state.proImage, analysis: state.proAnalysis, name: state.proFileName }
+          : { img: state.currentImage, analysis: state.analysis, name: state.currentFileName };
+      }
+      function clearProcessed() {
+        if (state.processedBlobUrl) URL.revokeObjectURL(state.processedBlobUrl);
+        state.stagedImages.forEach(i => URL.revokeObjectURL(i.blobUrl));
+        Object.assign(state, { processedBlob: null, processedBlobUrl: null, stagedImages: [] });
+        renderStaged();
+        el.downloadBtn.classList.add('hidden');
+        el.compareContainer.classList.add('hidden');
+        el.compareBtn.textContent = '展开对比';
+        el.processedPreview.src = '';
+      }
+      function setProPhoto(file) {
+        if (!file || !file.type.startsWith('image/')) { toast('请上传图片文件', 'error'); return; }
+        if (state.proImageUrl) URL.revokeObjectURL(state.proImageUrl);
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          state.proImage = img; state.proFileName = file.name;
+          state.proImageUrl = url; state.proAnalysis = analyzeImage(img);   // 成片自己也要一份统计，后期按它的实际亮度算
+          clearProcessed();                                                 // 换了成片，之前的结果作废
+          el.proThumb.src = url; el.proFname.textContent = file.name;
+          el.proPreview.classList.remove('hidden'); el.proDropZone.classList.add('hidden');
+          renderSeg(); renderChips();
+          toast('成片已就绪，可执行一键优化', 'success');
+        };
+        img.onerror = () => { toast('图片加载失败', 'error'); URL.revokeObjectURL(url); };
+        img.src = url;
+      }
+      function clearProPhoto() {
+        if (state.proImageUrl) URL.revokeObjectURL(state.proImageUrl);
+        Object.assign(state, { proImage: null, proFileName: '', proImageUrl: null, proAnalysis: null });
+        clearProcessed();
+        el.proDropZone.classList.remove('hidden'); el.proPreview.classList.add('hidden');
+        el.proThumb.src = ''; el.proFname.textContent = ''; el.proInput.value = '';
       }
 
       /* ==================== 事件绑定 ==================== */
@@ -960,6 +1027,14 @@
       el.dropZone.addEventListener('drop', e => { e.preventDefault(); el.dropZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) loadImageFile(f); });
       el.photoInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) loadImageFile(f); el.photoInput.value = ''; });
       el.reselectBtn.addEventListener('click', resetPhoto);
+
+      /* 专业模式成片：自己的上传入口，不动上方的参考照片 */
+      el.proDropZone.addEventListener('click', () => el.proInput.click());
+      el.proDropZone.addEventListener('dragover', e => { e.preventDefault(); el.proDropZone.classList.add('dragover'); });
+      el.proDropZone.addEventListener('dragleave', () => el.proDropZone.classList.remove('dragover'));
+      el.proDropZone.addEventListener('drop', e => { e.preventDefault(); el.proDropZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) setProPhoto(f); });
+      el.proInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) setProPhoto(f); el.proInput.value = ''; });
+      el.proReselectBtn.addEventListener('click', clearProPhoto);
 
       el.presetList.querySelectorAll('.seg').forEach(btn => btn.addEventListener('click', () => {
         state.selectedPreset = btn.dataset.preset;
