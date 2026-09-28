@@ -164,9 +164,9 @@ ISO 的 `isoMode` 是必要的：剪影和高亮场景的语义是"故意欠曝/
 只画直方图，用户看不懂。加了文字结论层：高光像素占比 >5% → 建议降 EV；暗部 >5% → 建议提 EV；stdDev >70 → 高对比；<25 → 低对比。阈值是先验经验值，需要真机拍照继续校准。
 
 **8. 真机反馈："点了保存，怎么弹出分享面板？"**
-第一次装到手机上点导出，弹出来的是系统分享面板而不是相册确认。原因不是功能坏了——APK 里走的是 `Share.share()`，把成片写进应用缓存后交给系统去分发。但按钮文案写着"下载成片"，用户的预期是静默存进相册，于是第一反应就是"出问题了"。
-两种改法：一是换第三方原生插件（`@capacitor-community/media` 之类）走 MediaStore 直接写相册；二是让文案与行为对齐。选了第二种——手机上的"导出成片"十次有九次是为了发出去或传到电脑，分享面板本身就是一步到位的解法（存相册、微信、朋友圈、抖音、网页传都在里面），而换插件要动原生工程、加存储权限、重新真机验证，收益只有"少点一下"。
-顺带修掉一个隐藏 bug：`bridge.js` 作为入口脚本在 `<head>` 里执行时 `body` 还没解析，`getElementById('download-btn')` 拿到的是 `undefined`，按钮文案根本没被改成功过。改成 `DOMContentLoaded` 之后再改。
+第一次装到手机上点导出，弹出来的是系统分享面板（抖音 / 朋友圈 / 微信状态 / 打印 / 网页传 / 隐私打码），里面**没有"保存到相册"**。原因不是功能坏了，而是文件位置不对：`Filesystem.writeFile({ directory: Directory.Cache })` 把成片写在应用私有缓存目录，再通过 FileProvider 临时授权给分享面板——相册应用不接受这种临时文件，系统自然不会给出"保存到相册"这个目标。Capacitor 官方 Filesystem 插件也补不了这个洞：`Directory.ExternalStorage` 只在 Android 9 及更早可用，`Directory.Documents` 在 Android 11+ 只能访问本应用创建的文件，两者都写不进系统相册。
+正解是走 MediaStore：引入 `@capacitor-community/media`（peer 依赖 `@capacitor/core >= 8.0.0`，正好对应本项目的 Capacitor 8），它把文件写进 `Pictures` 下本应用的相册目录并调用 `scanPhoto()` 登记，相册立刻可见，而且**保存到自己的相册不需要任何存储权限**。
+实现时读了一遍插件的 Java 源码，避开两个坑：`albumIdentifier` 在原生侧是必填（缺了直接 reject，不是可选项），所以必须先 `createAlbum()` 再 `getAlbums()` 取到目录路径；`blob:` 协议原生端读不到，必须转成 data URL 传过去（插件原生实现专门支持 `data:` 前缀）。
 
 ## 六、技术要点
 
@@ -195,8 +195,8 @@ ISO 的 `isoMode` 是必要的：剪影和高亮场景的语义是"故意欠曝/
 ```
 root/
 ├── index.html                 # 全部界面 + 算法，单文件；直接双击即可用，无需构建
-├── src/bridge.js              # 安卓壳的保存能力：写入缓存 → 调系统分享面板
-├── package.json               # 构建脚本
+├── src/bridge.js              # 安卓壳的保存能力：写入系统相册（MediaStore）
+├── package.json               # 依赖与构建脚本；唯一第三方原生插件 @capacitor-community/media 用于存相册
 ├── vite.config.js             # base: './' + 两个入口（页面与 bridge），适配 file:// 与 WebView
 ├── capacitor.config.json      # Capacitor 安卓壳配置
 ├── .github/workflows/build-apk.yml   # 推 tag 或手动触发时自动构建 APK 并上传产物
@@ -223,7 +223,7 @@ cd android && ./gradlew assembleDebug     # Windows: gradlew.bat assembleDebug
 
 > 网页版（`index.html`）不依赖任何构建：算法、界面、样式全在这一个文件里。`bridge.js` 只在 APK 内起作用，浏览器中未加载也不影响任何功能。
 >
-> APK 内那个按钮叫"保存 / 分享成片"：它调起系统分享面板（存相册 / 发微信 / 朋友圈 / 抖音 / 网页传），而不是静默写入相册。之所以这么设计，是因为手机上的"导出成片"十次有九次是为了发出去或传到电脑，分享面板一步到位；真机反馈也印证了这一点。按钮名称与行为保持一致，避免"点了保存却弹出分享"的预期落差。
+> APK 内那个按钮叫"保存到相册"：成片写入系统相册的 `Pictures/Root/` 相册（MediaStore 登记，相册应用立即可见），无需任何存储权限。发微信、发抖音等从相册里选即可。
 
 ## 九、后续方向（按优先级）
 
