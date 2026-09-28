@@ -218,9 +218,9 @@
   <main>
     <!-- 上传 -->
     <section>
-      <div class="sec-title"><span class="dot"></span>上传现场照片</div>
+      <div class="sec-title"><span class="dot"></span>第一步｜光线参考照片（普通模式）</div>
       <div id="drop-zone" class="dropzone">
-        <p>点击或拖拽上传普通模式拍摄的照片</p>
+        <p>点击或拖拽上传普通模式拍的照片，用来分析光线</p>
         <input type="file" id="photo-input" accept="image/*" class="hidden" />
       </div>
       <div id="upload-preview" class="upload-preview hidden">
@@ -231,6 +231,7 @@
         </div>
         <button class="btn btn-secondary btn-sm" id="reselect-btn">重新选择</button>
       </div>
+      <p class="note">这张只负责测光与给参数，会一直保留；拍完的成片放到「② 后期与导出」里的另一个位置。</p>
     </section>
 
     <!-- 分析 -->
@@ -248,8 +249,8 @@
     <!-- 标签页 -->
     <section class="hidden" id="tabs-section">
       <div class="tabs">
-        <button class="tab-btn active" data-tab="pane-preset">预设与参数</button>
-        <button class="tab-btn" data-tab="pane-post">后期与导出</button>
+        <button class="tab-btn active" data-tab="pane-preset">① 预设与参数</button>
+        <button class="tab-btn" data-tab="pane-post">② 后期与导出</button>
       </div>
 
       <div class="pane" id="pane-preset">
@@ -289,10 +290,10 @@
       </div>
 
       <div class="pane hidden" id="pane-post">
-        <div class="sec-title"><span class="dot"></span>专业模式拍摄的成片</div>
+        <div class="sec-title"><span class="dot"></span>第二步｜专业模式拍的成片（后期用）</div>
         <div id="pro-wrap">
           <div id="pro-drop-zone" class="dropzone">
-            <p>点击或拖拽上传专业模式拍摄的照片</p>
+            <p>点击或拖拽上传按参数实拍的照片，用来优化出片</p>
             <input type="file" id="pro-input" accept="image/*" class="hidden" />
           </div>
           <div id="pro-preview" class="upload-preview hidden">
@@ -318,7 +319,7 @@
           <button id="process-btn" class="btn btn-primary">一键优化</button>
           <button id="stage-btn" class="btn btn-secondary">暂存</button>
           <button id="clear-staged-btn" class="btn btn-danger">清空暂存</button>
-          <button id="download-btn" class="btn btn-secondary hidden">下载成片</button>
+          <button id="download-btn" class="btn btn-secondary hidden">保存 / 下载成片</button>
         </div>
 
         <div id="staged-images" class="staged-grid"></div>
