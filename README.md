@@ -31,6 +31,12 @@
 
 直方图不是画着好看：它直接翻译成人话，例如"高光溢出，建议降低 EV"、"暗部丢失，建议提高 EV"。
 
+> 实测（Chromium + 两张测试图）：
+> - 逆光图（亮度 128.3 / 色温 4961K）→ 逆光预设给出 `EV +1.4 · ISO 100 · 1/30 · 5100K · 点测光`；
+> - 暗光图（亮度 43.9）→ 同一个预设给出 `EV +1.0 · ISO 300 · 1/30 · 5600K · 自动`，直方图提示"暗部丢失，建议 +EV"。
+>
+> 同一个预设、两张照片、两组不同参数，这就是"动态"的实际含义。
+
 **2. 场景预设与动态参数**
 
 内置 4 个预设，全部对应真实的拍摄意图：
@@ -42,7 +48,7 @@
 | 暗环境 | 照度低，提亮同时控噪 | 轻微正向 | 自动/手动，允许升 ISO |
 | 高亮 | 强光/雪景/沙滩，防过曝 | 负向 | 点测光 · 高光，ISO 压到最低 |
 
-**关键点：所有参数随照片动态计算，没有一个是写死的。** 同一个"逆光"预设，对着不同亮度的照片给出的 EV、ISO、快门、白平衡都不同——计算规则见第五节。
+**关键点：所有参数随照片动态计算，没有一个是写死的。** 同一个"逆光"预设，对着不同亮度的照片给出的 EV、ISO、快门、白平衡都不同——计算规则见第四节。
 
 **3. 自定义预设**
 
@@ -157,7 +163,17 @@ ISO 的 `isoMode` 是必要的：剪影和高亮场景的语义是"故意欠曝/
 **7. 直方图解读要说人话**
 只画直方图，用户看不懂。加了文字结论层：高光像素占比 >5% → 建议降 EV；暗部 >5% → 建议提 EV；stdDev >70 → 高对比；<25 → 低对比。阈值是先验经验值，需要真机拍照继续校准。
 
-## 六、已知边界
+## 六、技术要点
+
+全部能力来自浏览器标准 API，**零第三方运行时依赖**：
+
+- **像素计算**：Canvas 2D `getImageData` / `putImageData`，逐像素做亮度、统计与后期；
+- **智能缩放**：分析用 200px 小图（保证速度），后期用最大边 3000px（保证出片画质），两者共用同一套统计函数；
+- **存储**：`localStorage`（小数据）+ `IndexedDB`（Blob 原图）+ `ObjectURL`（会话内展示），三层各司其职，删除时同步清理；
+- **性能与稳定性**：`createImageBitmap` 解码期缩放、`willReadFrequently: true` 避免画布回读惩罚、异步按钮防卡死、IndexedDB 不可用时自动降级；
+- **打包**：Vite 相对路径构建（`file://` 与 WebView 通用）+ Capacitor 安卓壳，GitHub Actions 一键出 APK。
+
+## 七、已知边界
 
 诚实地写清楚工具的能力范围：
 
@@ -169,49 +185,54 @@ ISO 的 `isoMode` 是必要的：剪影和高亮场景的语义是"故意欠曝/
 - 直方图解读阈值、ISO 上下限为经验值，需真机校准；
 - 自定义预设存在本机，不跨设备同步、无云端。
 
-## 七、项目结构
+## 八、项目结构
 
 ```
 root/
-├── index.html                 # 全部界面 + 算法，单文件（双击即用）
-├── bridge.js                  # 安卓壳的保存能力：写入缓存 → 调系统分享面板
+├── index.html                 # 全部界面 + 算法，单文件；直接双击即可用，无需构建
+├── src/bridge.js              # 安卓壳的保存能力：写入缓存 → 调系统分享面板
 ├── package.json               # 构建脚本
-├── vite.config.js             # base: './'，相对路径打包，适配 file:// 与 WebView
+├── vite.config.js             # base: './' + 两个入口（页面与 bridge），适配 file:// 与 WebView
 ├── capacitor.config.json      # Capacitor 安卓壳配置
-├── .github/workflows/build-apk.yml   # 推 tag 自动构建 APK，产物上传 Release
+├── .github/workflows/build-apk.yml   # 推 tag 或手动触发时自动构建 APK 并上传产物
+├── index.html.html            # 第一版（未重构、未拆模块），保留作演进对照
 └── 软件成品/
     ├── app-debug.apk          # 安卓安装包
     └── gen.zip                # 提交材料打包
 ```
 
-**本地构建**
+**构建与打包**（Node 20+）
 
 ```bash
 npm install
-# 方式一：网页版（产物在 www/，直接双击 www/index.html 也能用）
+
+# 网页产物：www/index.html（源码原样拷贝，双击可用）与 dist/（含 bridge 打包产物）
+# 部署到静态服务器 / GitHub Pages 用 dist/；只想在手机上直接打开用 www/index.html
 npm run build:web
 
-# 方式二：安卓 APK（需要 JDK 17+ 与 Android SDK）
+# 安卓 APK（需要 JDK 17+ 与 Android SDK；不装也行，仓库里已有构建好的 APK）
 npx cap add android
 npx cap sync android
 cd android && ./gradlew assembleDebug     # Windows: gradlew.bat assembleDebug
 ```
 
-## 八、后续方向（按优先级）
+> 网页版（`index.html`）不依赖任何构建：算法、界面、样式全在这一个文件里。`bridge.js` 只在 APK 内起作用，浏览器中未加载也不影响任何功能。
+
+## 九、后续方向（按优先级）
 
 1. `下载全部` 改为 zip 单包下载，彻底绕开浏览器的多文件拦截；
 2. 读取 EXIF（ISO / 快门 / 光圈），用机内实际参数校准估算值，给出更贴近的起手参数；
 3. 色温改用灰点白平衡 + CCT 查表，把 ±1000K 压到 ±200K 量级；
 4. 真机拍摄样本库：同一场景拍一组样片，回填校准直方图阈值与 ISO 上下限。
 
-## 九、提交信息
+## 十、提交信息
 
 - 实验室：深圳大学 物光创新实验室（CPOE iLab）
 - 邮箱：szu.cpoe.ilab@outlook.com
 - 邮件主题：`学号—姓名—根Root手机摄影辅助工具材料`
 - 提交材料：源代码、README、演示材料、个人简介、GitHub 仓库链接（见文首）
 
-## 十、致谢
+## 十一、致谢
 
 - 用到的全部能力均来自浏览器标准 API：Canvas 2D、IndexedDB、localStorage、ObjectURL、`createImageBitmap`，无第三方运行时依赖；
 - 安卓壳感谢 [Capacitor](https://capacitorjs.com/) 与 [Vite](https://vitejs.dev/) 提供的打包链路；
