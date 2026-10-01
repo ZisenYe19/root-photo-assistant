@@ -7,25 +7,29 @@
   <style>
     /* ============ 设计变量 ============ */
     :root {
-      /* 深黑分层 + 初版那种饱和金。层级仍然是"明度阶梯 + 分隔线 + 分区带"，
-         但整体压回黑：底 15 → 面板 26 → 卡片 38，卡片边界靠 --border 划出来。 */
-      --bg: #0f1116; --panel: #1a1e25; --panel-2: #1e232a; --card: #262b34; --card-hi: #2d333d;
-      --text: #edeff3; --text-dim: #c2c8d2; --muted: #9aa1ae; --faint: #767d8a;
-      --accent: #d4a94e; --accent-2: #e8c67e; --accent-deep: #a37f31;
-      --accent-soft: #2e2413;   /* 实色暗金底 */
-      --accent-line: #6d5729;
-      --danger: #d97a5c; --danger-soft: #32221d; --success: #6fb573; --success-soft: #1d2a1e;
-      --border: #2c323c; --border-soft: #22272f; --border-hi: #3a414d;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
-      --shadow: 0 6px 22px rgba(0,0,0,.45);
-      --shadow-lg: 0 18px 44px rgba(0,0,0,.6);
+      /* 深灰墨底 + 压过一档的哑光金。层级靠"明度阶梯 + 分隔线 + 分区带"。
+         底色明度停在一档"近黑但不死"的位置（底 21 → 面板 30 → 卡片 42）：再往下就没有呼吸空间，
+         暗部会糊成一块死黑；再往上就发灰。 */
+      --bg: #15181e; --panel: #1e2229; --panel-2: #22262e; --card: #2a2f38; --card-hi: #313742;
+      --text: #e9ecf1; --text-dim: #bec5d0; --muted: #969eab; --faint: #737b88;
+      --accent: #c4983f; --accent-2: #dcb264; --accent-deep: #96742c;
+      --accent-soft: #2a2113;   /* 实色暗金底 */
+      --accent-line: #634e26;
+      --danger: #d07256; --danger-soft: #2e1f1a; --success: #68a96c; --success-soft: #1b261c;
+      --border: #30363f; --border-soft: #262b33; --border-hi: #3d444f;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.36);
+      --shadow: 0 6px 22px rgba(0,0,0,.4);
+      --shadow-lg: 0 18px 44px rgba(0,0,0,.55);
       --radius-lg: 16px; --radius: 12px; --radius-sm: 9px;
       --gap: 16px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg); color: var(--text);
-      background-image: linear-gradient(180deg, #151922 0%, var(--bg) 46%);
+      /* 顶部一层极淡的暖光：给近黑底一点空气感，避免"死黑"平板 */
+      background-image:
+        radial-gradient(120% 44% at 50% -8%, #242832 0%, transparent 62%),
+        linear-gradient(180deg, #191d24 0%, var(--bg) 52%);
       background-attachment: fixed;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
       font-size: 15px; line-height: 1.55; padding: 18px 14px 28px; min-height: 100vh;
@@ -61,7 +65,7 @@
     /* 上传区 */
     .dropzone { border: 1.5px dashed var(--border-hi); border-radius: var(--radius); padding: 26px 14px;
       text-align: center; color: var(--text-dim); cursor: pointer; transition: all .18s ease;
-      background: #171b22; }
+      background: #1b1f26; }
     .dropzone:hover, .dropzone.dragover { border-color: var(--accent-line); color: var(--accent);
       background: var(--accent-soft); box-shadow: 0 0 0 4px var(--accent-soft); }
     .dropzone p { font-size: .88rem; }
@@ -99,7 +103,7 @@
       margin-top: 6px; letter-spacing: 1px; }
 
     /* 标签页：分段控件 */
-    .tabs { display: flex; gap: 4px; padding: 4px; background: #14181f;
+    .tabs { display: flex; gap: 4px; padding: 4px; background: #191d24;
       border: 1px solid var(--border-soft); border-radius: var(--radius); }
     .tab-btn { flex: 1; border: none; background: transparent; color: var(--muted);
       border-radius: var(--radius-sm); padding: 10px 8px; font-size: .9rem; font-weight: 600;
@@ -485,8 +489,8 @@
       const HIST = { darkMax: 15, brightMin: 240, overRatio: 0.05, underRatio: 0.05, hiStd: 70, loStd: 25 };
       /* 直方图画布用色（画布内画不进 CSS 变量；浅色版 index-light.html 只改这里与 :root） */
       const HIST_THEME = {
-        bg: '#12151b', grid: 'rgba(255,255,255,.07)',
-        bar: [[0, '#e8c67e'], [.55, '#d4a94e'], [1, '#8a6d2f']],
+        bg: '#171a20', grid: 'rgba(255,255,255,.07)',
+        bar: [[0, '#dcb264'], [.55, '#c4983f'], [1, '#7d6228']],
       };
       const ANALYZE_MAX = 200;                // 主图分析用最大边
       const THUMB_SIDE = 240;                 // 参考图统计/降级缩略图最大边
