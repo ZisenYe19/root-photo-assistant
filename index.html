@@ -7,25 +7,25 @@
   <style>
     /* ============ 设计变量 ============ */
     :root {
-      /* 中性灰蓝为底（低饱和），单一金色点缀且压到不刺眼。
-         层级靠"明度阶梯 + 分隔线 + 分区带"三层结构做出来，不靠色相跳变。 */
-      --bg: #171b21; --panel: #1e232b; --panel-2: #222831; --card: #272d37; --card-hi: #2e3540;
-      --text: #eef1f5; --text-dim: #c3cad4; --muted: #a7aeba; --faint: #838b98;
-      --accent: #d8b473; --accent-2: #e6cc99; --accent-deep: #a8874a;
-      --accent-soft: #33291a;   /* 实色暗金底 */
-      --accent-line: #6b5734;
-      --danger: #d98267; --danger-soft: #35262a; --success: #7fb886; --success-soft: #23302a;
-      --border: #333a45; --border-soft: #262c35; --border-hi: #424a57;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
-      --shadow: 0 6px 22px rgba(0,0,0,.34);
-      --shadow-lg: 0 18px 44px rgba(0,0,0,.48);
+      /* 深黑分层 + 初版那种饱和金。层级仍然是"明度阶梯 + 分隔线 + 分区带"，
+         但整体压回黑：底 15 → 面板 26 → 卡片 38，卡片边界靠 --border 划出来。 */
+      --bg: #0f1116; --panel: #1a1e25; --panel-2: #1e232a; --card: #262b34; --card-hi: #2d333d;
+      --text: #edeff3; --text-dim: #c2c8d2; --muted: #9aa1ae; --faint: #767d8a;
+      --accent: #d4a94e; --accent-2: #e8c67e; --accent-deep: #a37f31;
+      --accent-soft: #2e2413;   /* 实色暗金底 */
+      --accent-line: #6d5729;
+      --danger: #d97a5c; --danger-soft: #32221d; --success: #6fb573; --success-soft: #1d2a1e;
+      --border: #2c323c; --border-soft: #22272f; --border-hi: #3a414d;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+      --shadow: 0 6px 22px rgba(0,0,0,.45);
+      --shadow-lg: 0 18px 44px rgba(0,0,0,.6);
       --radius-lg: 16px; --radius: 12px; --radius-sm: 9px;
       --gap: 16px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg); color: var(--text);
-      background-image: linear-gradient(180deg, #1c2129 0%, var(--bg) 42%);
+      background-image: linear-gradient(180deg, #151922 0%, var(--bg) 46%);
       background-attachment: fixed;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
       font-size: 15px; line-height: 1.55; padding: 18px 14px 28px; min-height: 100vh;
@@ -61,7 +61,7 @@
     /* 上传区 */
     .dropzone { border: 1.5px dashed var(--border-hi); border-radius: var(--radius); padding: 26px 14px;
       text-align: center; color: var(--text-dim); cursor: pointer; transition: all .18s ease;
-      background: var(--card); }
+      background: #171b22; }
     .dropzone:hover, .dropzone.dragover { border-color: var(--accent-line); color: var(--accent);
       background: var(--accent-soft); box-shadow: 0 0 0 4px var(--accent-soft); }
     .dropzone p { font-size: .88rem; }
@@ -99,7 +99,7 @@
       margin-top: 6px; letter-spacing: 1px; }
 
     /* 标签页：分段控件 */
-    .tabs { display: flex; gap: 4px; padding: 4px; background: #1a1f27;
+    .tabs { display: flex; gap: 4px; padding: 4px; background: #14181f;
       border: 1px solid var(--border-soft); border-radius: var(--radius); }
     .tab-btn { flex: 1; border: none; background: transparent; color: var(--muted);
       border-radius: var(--radius-sm); padding: 10px 8px; font-size: .9rem; font-weight: 600;
@@ -485,8 +485,8 @@
       const HIST = { darkMax: 15, brightMin: 240, overRatio: 0.05, underRatio: 0.05, hiStd: 70, loStd: 25 };
       /* 直方图画布用色（画布内画不进 CSS 变量；浅色版 index-light.html 只改这里与 :root） */
       const HIST_THEME = {
-        bg: '#181c24', grid: 'rgba(255,255,255,.07)',
-        bar: [[0, '#e6cc99'], [.55, '#d8b473'], [1, '#8f7541']],
+        bg: '#12151b', grid: 'rgba(255,255,255,.07)',
+        bar: [[0, '#e8c67e'], [.55, '#d4a94e'], [1, '#8a6d2f']],
       };
       const ANALYZE_MAX = 200;                // 主图分析用最大边
       const THUMB_SIDE = 240;                 // 参考图统计/降级缩略图最大边
