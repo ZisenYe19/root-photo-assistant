@@ -5,23 +5,31 @@ on:
   push:
     tags: ['v*']
 
+permissions:
+  contents: write          # 用来自动创建 Release
+
 jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '21'      # Capacitor 8 要求 Java 21
+
       - name: 安装依赖
         run: npm ci
+
       - name: 打包网页产物到 dist/
         run: npm run build:web
+
       - name: 生成安卓工程并构建 Debug APK
         run: |
           npx cap add android
@@ -29,9 +37,26 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-      - name: 上传 APK
+
+      # 不写死文件名：工具链在某些环境会产出 app-debug-unsigned.apk，写死路径会让整步直接失败
+      - name: 定位 APK
+        id: find
+        run: |
+          APK=$(find android/app/build/outputs/apk -name '*.apk' | head -n 1)
+          if [ -z "$APK" ]; then echo "没找到任何 APK"; exit 1; fi
+          echo "找到: $APK"
+          cp "$APK" ./root-apk.apk
+          echo "path=root-apk.apk" >> "$GITHUB_OUTPUT"
+
+      - name: 上传为构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: root-apk
+          path: root-apk.apk
           if-no-files-found: error
+
+      - name: 发布到 Release（免登录下载）
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: root-apk.apk
