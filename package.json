@@ -1,6 +1,6 @@
 {
-  "name": "root-camera-tool",
-  "version": "1.0.0",
+  "name": "root-photo-assistant",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "build:web": "node -e \"const f=require('fs');f.mkdirSync('www',{recursive:true});f.copyFileSync('index.html','www/index.html')\" && vite build",

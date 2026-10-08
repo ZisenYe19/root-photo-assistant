@@ -108,7 +108,7 @@
 
 先缩到最长边 200 像素再读像素（约 1/450 的数据量，速度提升明显，结论几乎不变），亮度用 Rec.709 感知亮度：
 
-```
+```text
 L = 0.2126·R + 0.7152·G + 0.0722·B
 ```
 
@@ -118,7 +118,7 @@ L = 0.2126·R + 0.7152·G + 0.0722·B
 
 色温为工程近似：
 
-```
+```text
 色温 ≈ clamp(5500 - (平均R - 平均B)/255 × 4000, 2000, 10000)
 ```
 
@@ -128,7 +128,7 @@ L = 0.2126·R + 0.7152·G + 0.0722·B
 
 核心只有一个量：**当前亮度与目标亮度的差距**。
 
-```
+```text
 dEv      = (L - effTarget) / 25          // 25 级亮度 ≈ 1 EV，除以 25 把亮度差换算成曝光档位
 快门      = SHUTTER_LIST[clamp(baseShutterIndex - round(dEv), 0, 14)]
 EV       = evOffset - dEv × 0.5          // 预设定向值给方向，差距做微调
@@ -141,7 +141,7 @@ ISO      = baseISO 按 isoMode 与现场亮度微调（有上下限保护）
 
 **目标亮度为什么不写死**：
 
-```
+```text
 effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 ```
 
@@ -149,7 +149,7 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 
 ### 3. 自定义预设（差值法，不套死值）
 
-```
+```text
 拍摄：dEv = (当前 L - 参考图 L) / 25，其余同上
 后期：brightness = clamp(参考图 L - 当前 L, -80, 80)
       contrast   = (参考图 stdDev - 当前 stdDev) × 10
@@ -163,7 +163,7 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 
 一键优化的参数由两层相加，两层都乘"后期强度"：
 
-```
+```text
 后期参数   = ( 预设风格层 + 场景补偿层 ) × 后期强度
 场景补偿层 = clamp(round((effTarget - L) × 0.6), -60, 60)
 ```
@@ -187,7 +187,7 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 
 ### 5. Lightroom 参数
 
-```
+```text
 色温   = 预设目标 × 0.7 + 现场实测 × 0.3
 对比度 = 预设值 + (45 - stdDev) × 0.5
 阴影   = 预设值 + (effTarget - L) × 0.5
@@ -213,7 +213,15 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 后期色温原本直接取现场估算色温，导致自定义预设的色温风格被冲掉（参考图是暖调、现场是冷光，结果给出冷调）。改成加权融合：预设目标 0.7 + 现场实测 0.3。
 
 **3. 手机浏览器存不下参考图**
-自定义预设最初把参考图转成 dataURL 存 `localStorage`，几百 KB 的图到第三张就报 `QuotaExceededError`。改为三层存储：`localStorage` 只存 8 个数值字段 + 降级缩略图；参考图原图以 Blob 存进 `IndexedDB`；本次会话展示用 `ObjectURL`。删除预设时三处同步清理（元数据 + IndexedDB 原图 + revoke ObjectURL）。`IndexedDB` 不可用（隐私模式等）时自动降级到缩略图方案，功能不中断。
+自定义预设最初把参考图转成 dataURL 存 `localStorage`，几百 KB 的图到第三张就报 `QuotaExceededError`。
+
+改为三层存储，各管一件事：
+
+- `localStorage` 只存 8 个数值字段 + 降级缩略图；
+- 参考图原图以 Blob 存进 `IndexedDB`；
+- 本次会话的展示地址用 `ObjectURL`。
+
+删除预设时三处同步清理（元数据 + IndexedDB 原图 + revoke ObjectURL）。`IndexedDB` 不可用（隐私模式等）时自动降级到缩略图方案，功能不中断。
 
 **4. 保存预设卡住按钮**
 早期版本读参考图时对原图做全尺寸解码再统计，手机上一张 5000×4000 的照片要等数秒，用户以为卡死会连点。改为 `createImageBitmap(file, {resizeWidth: 240})` 让浏览器在解码阶段就缩放，统计只用 240px 小图（毫秒级），原图仅做存储。并加了防双击 + 20 秒解冻兜底。
@@ -222,8 +230,19 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 只画直方图用户看不懂。加了文字结论层：高光像素 >5% → 建议降 EV；暗部 >5% → 建议提 EV；stdDev >70 → 高对比；<25 → 低对比。阈值是先验经验值，需真机继续校准。
 
 **6. 真机上"保存"弹出的是分享面板，里面没有"保存到相册"**
-第一次把 APK 装到手机上点导出，弹出的是系统分享面板，选项全是"发给别人"，**没有保存到本机**。根因是文件位置：`Filesystem.writeFile({ directory: Directory.Cache })` 把成片写在应用私有缓存目录，再通过 FileProvider 交给分享面板——相册应用不接受这种临时文件，系统自然不会给出"保存到相册"这个目标。Capacitor 官方 Filesystem 插件也补不了：`Directory.ExternalStorage` 只在 Android 9 及更早可用，`Directory.Documents` 在 Android 11+ 只能访问本应用创建的文件。
-正解是走 MediaStore：引入 `@capacitor-community/media`，它把文件写进 `Pictures` 下本应用的相册目录并调用 `scanPhoto()` 登记，相册立刻可见，**且保存到自己的相册不需要任何存储权限**。实现时读插件 Java 源码避开了两个坑：`albumIdentifier` 在原生侧是**必填**（缺了直接 reject，不是可选项）；`blob:` 协议原生端读不到，必须转成 data URL。
+第一次把 APK 装到手机上点导出，弹出的是系统分享面板，选项全是"发给别人"，**没有保存到本机**。
+
+根因是文件位置：`Filesystem.writeFile({ directory: Directory.Cache })` 把成片写在应用私有缓存目录，再通过 FileProvider 交给分享面板——相册应用不接受这种临时文件，系统自然不会给出"保存到相册"这个目标。
+
+Capacitor 官方 Filesystem 插件也补不了这个洞：`Directory.ExternalStorage` 只在 Android 9 及更早可用，`Directory.Documents` 在 Android 11+ 只能访问本应用创建的文件。
+
+正解是走 MediaStore：引入 `@capacitor-community/media`，它把文件写进 `Pictures` 下本应用的相册目录并调用 `scanPhoto()` 登记，相册立刻可见，**且保存到自己的相册不需要任何存储权限**。
+
+实现时读插件 Java 源码避开了两个坑：
+
+- `albumIdentifier` 在原生侧是**必填**（缺了直接 reject，不是可选项）；
+- `blob:` 协议原生端读不到，必须转成 data URL。
+
 顺带修掉一个隐藏 bug：`bridge.js` 作为入口脚本在 `<head>` 执行时 `body` 还没解析，`getElementById('download-btn')` 拿到 `undefined`，改文案的代码从未生效——改成 `DOMContentLoaded` 之后执行。同时发现网页层从来没有调用过桥接函数（桥接代码是死代码），补上了 `window.__nativeSave` 的调用与失败回落。
 
 **7. 后期会过冲：暗照片被"提亮到发灰"**
@@ -268,16 +287,21 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 
 ## 八、项目结构
 
-```
+```text
 root-photo-assistant/
+├── README.md                  # 本文档（项目讲解材料）
 ├── index.html                 # 全部界面 + 算法（单文件，双击即用，无需构建）
 ├── src/bridge.js              # 安卓壳的保存能力：写入系统相册（MediaStore）
 ├── package.json               # 依赖与构建脚本
+├── package-lock.json          # 锁定依赖版本，保证 npm ci 可复现
 ├── vite.config.js             # base: './' + 两个入口（页面与 bridge）
 ├── capacitor.config.json      # Capacitor 安卓壳配置
 ├── gradle-mirror.init.gradle  # Gradle 换国内镜像（网络受限环境下构建用）
 ├── diag-check.js              # 静态自检：JS 语法、$(id) 引用、CSS 类是否对得上 DOM
+├── check-readme.js            # 校验 README 格式：标题层级、代码块配对、表格列数
 ├── check-workflow.js          # 校验 GitHub Actions 工作流与引用文件
+├── check-project.js           # 校验 README 链接、文件清单、提交材料对应关系
+├── .gitignore                 # 排除 node_modules / dist / android 等构建中间产物
 ├── .github/workflows/build-apk.yml   # 推 tag 自动构建 APK 并发布 Release
 ├── docs/环境与构建.md          # 运行环境、依赖版本、从零构建全流程
 ├── apk/根Root-摄影辅助工具.apk  # 安卓安装包（Debug 签名）
@@ -331,7 +355,7 @@ root-photo-assistant/
 
 - 实验室：深圳大学 物光创新实验室（CPOE iLab）
 - 邮箱：`szu.cpoe.ilab@outlook.com`
-- 邮件主题：`学号—姓名—根Root手机摄影辅助工具`
+- 邮件主题：`2026270010—叶子森—根Root手机摄影辅助工具`
 - 提交材料与对应文件：
 
 | 实验室要求 | 本仓库对应 |
