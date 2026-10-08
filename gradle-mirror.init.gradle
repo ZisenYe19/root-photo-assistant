@@ -1,0 +1,36 @@
+// Gradle init 脚本：把 google() / mavenCentral() 换成阿里云镜像。
+// 直连 dl.google.com 与 repo1.maven.org 在国内很慢，这是构建卡住最常见的原因。
+// 只替换仓库地址，工程本身的 build.gradle 不动。
+def ALI = [
+  google: 'https://maven.aliyun.com/repository/google/',
+  central: 'https://maven.aliyun.com/repository/public/',
+  plugin: 'https://maven.aliyun.com/repository/gradle-plugin/',
+]
+
+def applyMirrors = { RepositoryHandler repos ->
+  repos.all { repo ->
+    if (!(repo instanceof MavenArtifactRepository)) return
+    def u = repo.url.toString()
+    if (u.startsWith('https://dl.google.com/') || u.startsWith('https://maven.google.com/')) {
+      repo.setUrl(ALI.google)
+    } else if (u.startsWith('https://repo.maven.apache.org/') || u.startsWith('https://repo1.maven.org/')) {
+      repo.setUrl(ALI.central)
+    } else if (u.startsWith('https://plugins.gradle.org/')) {
+      repo.setUrl(ALI.plugin)
+    }
+  }
+}
+
+settingsEvaluated { settings ->
+  applyMirrors(settings.pluginManagement.repositories)
+  applyMirrors(settings.dependencyResolutionManagement.repositories)
+  settings.dependencyResolutionManagement.repositories.with {
+    maven { url ALI.google; allowInsecureProtocol = false }
+    maven { url ALI.central; allowInsecureProtocol = false }
+  }
+}
+
+allprojects {
+  buildscript { applyMirrors(repositories) }
+  applyMirrors(repositories)
+}
