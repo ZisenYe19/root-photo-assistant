@@ -437,8 +437,9 @@
         </div>
         <p class="note">这张负责后期与 Lightroom 导出；上方参考照片只负责测光，两者互不覆盖。更换参考照片时，这里会清空。</p>
 
-        <!-- 后期强度：只缩放"场景补偿层"，预设自身的风格不受影响（见 getAdj 注释）。
-             不做持久化：刷新即回到默认 30%，预设有变动时强度不遗留、不会静默换风格。 -->
+        <!-- 后期强度：0% = 原图（不做任何处理），100% = 预设的完整效果。
+             预设风格与场景补偿都按这个系数缩放，所以 0% 时输出与原图逐像素一致。
+             不做持久化：刷新回到默认 30%，避免"预设有变、强度静默沿用"造成风格漂移。 -->
         <div class="strength-row">
           <label for="strength">后期强度</label>
           <input type="range" id="strength" min="0" max="100" step="10" value="30" />
@@ -493,6 +494,8 @@
         bar: [[0, '#dcb264'], [.55, '#c4983f'], [1, '#7d6228']],
       };
       const ANALYZE_MAX = 200;                // 主图分析用最大边
+      const TARGET_KEEP = 0.7;                // 预设目标亮度权重：其余部分向照片自身亮度靠拢
+                                              // （0=完全按预设目标硬推，1=完全不管预设目标）
       const THUMB_SIDE = 240;                 // 参考图统计/降级缩略图最大边
       const POST_MAX = 3000;                  // 一键后期处理最大边
 
@@ -973,31 +976,37 @@
           d[i] = clamp(r, 0, 255); d[i + 1] = clamp(g, 0, 255); d[i + 2] = clamp(bb, 0, 255);
         }
       }
-      /* 内置预设后期参数动态化：偏离目标越多补正越大 */
-      /* 内置预设的后期参数 = 预设风格层（post.*，强度一律 100%）+ 场景补偿层（按现场亮度算，受后期强度缩放）。
-         拆开的原因：风格层只是倾向（提亮 25 度、压一点对比），不会毁图；补偿层才是会失控的那部分——
-         原来两者直接相加，宿舍那种 L=64 的照片选逆光会得到 +76，整体被抬到 139、高光压成一片白。
-         现在补偿层乘 state.postStrength 后再相加，30% 时同样的照片只加 +25+round(52*0.3)=+41。 */
+      /* 一键优化的参数 = 预设风格层（post.*）
+                        + 场景补偿层（有效目标与照片亮度的差距）
+         两层都乘后期强度，强度 0 → 所有系数归零，输出与原图逐像素一致。
+         为什么要有场景补偿层：预设只描述"意图"（逆光要提亮），具体补多少得看这张照片有多暗。
+         为什么目标要向照片靠拢（TARGET_KEEP）：原来目标写死 150，宿舍那种 L=64 的照片被硬推到
+         150、高光压成一片白；现在推到 124，提亮仍明显但不过冲。 */
       function getAdj(key, analysis) {
         if (!analysis) return null;
+        const k = clamp(state.postStrength, 0, 1);   // 后期强度：0 = 原图，1 = 预设完整效果
         if (key && key.startsWith('custom:')) {
           const cp = state.customPresets.find(p => p.id === Number(key.split(':')[1]));
           if (!cp) return null;
-          return { brightness: clamp(cp.L - analysis.L, -80, 80),
-            contrast: clamp(Math.round((cp.stdDev - analysis.stdDev) * 10), -50, 50),
-            saturation: clamp(Math.round((cp.saturation - analysis.saturation) * 100), -30, 30),
-            colorTempR: cp.avgR / Math.max(1, analysis.avgR) - 1, colorTempB: cp.avgB / Math.max(1, analysis.avgB) - 1 };
+          return { brightness: Math.round(clamp(cp.L - analysis.L, -80, 80) * k),
+            contrast: Math.round(clamp(Math.round((cp.stdDev - analysis.stdDev) * 10), -50, 50) * k),
+            saturation: Math.round(clamp(Math.round((cp.saturation - analysis.saturation) * 100), -30, 30) * k),
+            colorTempR: clamp(cp.avgR / Math.max(1, analysis.avgR) - 1, -1, 1) * k,
+            colorTempB: clamp(cp.avgB / Math.max(1, analysis.avgB) - 1, -1, 1) * k };
         }
         const p = builtinPresets[key];
         if (!p) return null;
-        const dyn = clamp(Math.round((p.targetL - analysis.L) * 0.6), -60, 60);       // 场景补偿层
-        const k = clamp(state.postStrength, 0, 1);                                     // 后期强度
+        /* 目标亮度不再写死：向照片自身靠拢，避免"任何照片都被拉到同一个亮度"。
+           权重 0.7 表示仍以预设意图为主，但暗照片不会被过度提亮。
+           例：宿舍照 L=64 选逆光 → 有效目标 124（原来硬推 150） */
+        const effTarget = p.targetL * TARGET_KEEP + analysis.L * (1 - TARGET_KEEP);
+        const dyn = clamp(Math.round((effTarget - analysis.L) * 0.6), -60, 60);   // 场景补偿层
         return {
-          brightness: clamp(p.post.brightness + Math.round(dyn * k), -100, 100),
-          contrast: clamp(p.post.contrast + Math.round((45 - analysis.stdDev) * 0.5), -50, 50),
-          saturation: p.post.saturation,
-          colorTempR: p.post.colorTempR,
-          colorTempB: p.post.colorTempB,
+          brightness: Math.round(clamp(p.post.brightness + dyn, -100, 100) * k),
+          contrast: Math.round(clamp(p.post.contrast + Math.round((45 - analysis.stdDev) * 0.5), -50, 50) * k),
+          saturation: Math.round(p.post.saturation * k),
+          colorTempR: p.post.colorTempR * k,
+          colorTempB: p.post.colorTempB * k,
         };
       }
 
