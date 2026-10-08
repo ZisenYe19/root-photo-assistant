@@ -305,9 +305,10 @@ root-photo-assistant/
 ├── .github/workflows/build-apk.yml   # 推 tag 自动构建 APK 并发布 Release
 ├── docs/环境与构建.md          # 运行环境、依赖版本、从零构建全流程
 ├── apk/根Root-摄影辅助工具.apk  # 安卓安装包（Debug 签名）
-├── LICENSE                    # MIT
-└── 个人简介.md                 # 提交材料之一
+└── LICENSE                    # MIT
 ```
+
+> `个人简介.md` 含联系方式，仅随邮件附件提交，不在本仓库中。
 
 构建方式见 [`docs/环境与构建.md`](docs/环境与构建.md)。
 
@@ -358,11 +359,11 @@ root-photo-assistant/
 - 邮件主题：`2026270010—叶子森—根Root手机摄影辅助工具`
 - 提交材料与对应文件：
 
-| 实验室要求 | 本仓库对应 |
+| 实验室要求 | 对应文件 |
 |---|---|
-| 项目源代码 | `index.html`、`src/bridge.js` 及构建配置 |
+| 项目源代码 | 本仓库：`index.html`、`src/bridge.js` 及构建配置 |
 | 项目讲解材料 | 本 README（含功能、算法、实测数据、踩坑记录） |
-| 个人简介 | `个人简介.md` |
+| 个人简介 | `个人简介.md`（含联系方式，随邮件附件提交，不在本仓库） |
 | 项目 GitHub 仓库链接 | https://github.com/ZisenYe19/root-photo-assistant |
 
 ---
