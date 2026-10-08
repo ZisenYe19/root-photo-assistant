@@ -268,7 +268,7 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 ## 八、项目结构
 
 ```
-根/
+root-photo-assistant/
 ├── index.html                 # 全部界面 + 算法（单文件，双击即用，无需构建）
 ├── src/bridge.js              # 安卓壳的保存能力：写入系统相册（MediaStore）
 ├── package.json               # 依赖与构建脚本
@@ -280,6 +280,7 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 ├── .github/workflows/build-apk.yml   # 推 tag 自动构建 APK 并发布 Release
 ├── docs/环境与构建.md          # 运行环境、依赖版本、从零构建全流程
 ├── apk/根Root-摄影辅助工具.apk  # 安卓安装包（Debug 签名）
+├── LICENSE                    # MIT
 └── 个人简介.md                 # 提交材料之一
 ```
 
@@ -330,7 +331,14 @@ effTarget = 预设目标 × 0.7 + 照片亮度 × 0.3
 - 实验室：深圳大学 物光创新实验室（CPOE iLab）
 - 邮箱：`szu.cpoe.ilab@outlook.com`
 - 邮件主题：`学号—姓名—根Root手机摄影辅助工具`
-- 提交材料：源代码、README、演示材料、个人简介、GitHub 仓库链接
+- 提交材料与对应文件：
+
+| 实验室要求 | 本仓库对应 |
+|---|---|
+| 项目源代码 | `index.html`、`src/bridge.js` 及构建配置 |
+| 项目讲解材料 | 本 README（含功能、算法、实测数据、踩坑记录） |
+| 个人简介 | `个人简介.md` |
+| 项目 GitHub 仓库链接 | **【提交前替换为你的仓库链接】**，例如 `https://github.com/<用户名>/root-photo-assistant` |
 
 ---
 
