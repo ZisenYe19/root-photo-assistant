@@ -1,5 +1,10 @@
+# 依赖与构建中间产物
 node_modules/
 dist/
 www/
 android/
+
+# 日志
 *.log
+
+# 说明：apk/ 目录下的安装包是交付成品，需要纳入版本控制
