@@ -8,6 +8,7 @@
 
 | | |
 |---|---|
+| 项目仓库 | https://github.com/ZisenYe19/root-photo-assistant |
 | 在线体验 | 下载 `index.html` 用浏览器打开即可（手机、电脑均可） |
 | 安卓安装包 | [`apk/根Root-摄影辅助工具.apk`](apk/根Root-摄影辅助工具.apk)（4.6 MB，Debug 签名，可直接安装） |
 | 环境与构建 | [`docs/环境与构建.md`](docs/环境与构建.md) |
@@ -338,7 +339,7 @@ root-photo-assistant/
 | 项目源代码 | `index.html`、`src/bridge.js` 及构建配置 |
 | 项目讲解材料 | 本 README（含功能、算法、实测数据、踩坑记录） |
 | 个人简介 | `个人简介.md` |
-| 项目 GitHub 仓库链接 | **【提交前替换为你的仓库链接】**，例如 `https://github.com/<用户名>/root-photo-assistant` |
+| 项目 GitHub 仓库链接 | https://github.com/ZisenYe19/root-photo-assistant |
 
 ---
 
